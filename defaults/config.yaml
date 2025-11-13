@@ -1,0 +1,13 @@
+containerized: "docker://dah0303/wastewater:latest"
+pre_qc:
+  copy_runs: "y"
+plots:
+  plot_dir: "results/plots/"
+report:
+  format: "pdf"
+  date: "October 2, 2025"
+  author: "Dan Hartman, MS, PhD"
+  author_email: "daniel.hartman@doh.wa.gov"
+  team: "Molecular Epidemiology Program"
+  team_email: "wgs-epi@doh.wa.gov"
+  data_period: "January 2024 - September 2025"
