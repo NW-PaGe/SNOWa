@@ -1,0 +1,22 @@
+digraph snakemake_dag {
+    graph[bgcolor=white, margin=0];
+    node[shape=box, style=rounded, fontname=sans,                 fontsize=10, penwidth=2];
+    edge[penwidth=2, color=grey];
+	0[label = "final_qc", color = "0.28 0.6 0.85", style="rounded"];
+	1[label = "pre_qc", color = "0.56 0.6 0.85", style="rounded"];
+	2[label = "variant_lineage_mapping_qc", color = "0.61 0.6 0.85", style="rounded"];
+	3[label = "add_site_and_classifications", color = "0.11 0.6 0.85", style="rounded"];
+	4[label = "merge_data", color = "0.17 0.6 0.85", style="rounded"];
+	5[label = "pop_weighted_proportions_qc", color = "0.00 0.6 0.85", style="rounded"];
+	6[label = "add_population_weights", color = "0.22 0.6 0.85", style="rounded"];
+	7[label = "add_county_weights", color = "0.33 0.6 0.85", style="rounded"];
+	1 -> 0
+	2 -> 0
+	5 -> 0
+	3 -> 2
+	4 -> 3
+	6 -> 5
+	7 -> 5
+	3 -> 6
+	3 -> 7
+}            
