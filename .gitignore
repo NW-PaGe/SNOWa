@@ -1,2 +1,12 @@
+# datasets
 runs/
 new_runs/
+
+# results
+results/
+ww_report*
+
+# snakemake-related
+.snakemake/
+
+.cache/
