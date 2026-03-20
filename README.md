@@ -24,9 +24,7 @@ Future work:
 
 1. Clone the repository:
 ```bash
-git clone git@github.com:DOH-DAH0303/wamep-sarscov2-wastewater.git
-git checkout snakemake
-cd wamep-sarscov2-wastewater
+git clone https://github.com/NW-PaGe/SNOWa
 ```
 
 ## When to Run
