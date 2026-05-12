@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import shutil
 
-def pre_qc():
+def pre_qc(directory): ## I added directory here - that will come from args.parse (see end of this script)
     """
     Pre-QC Validation for new_runs folder
     Add the new data files to the new_runs folder for the pre-qc step. 
@@ -298,4 +298,9 @@ def pre_qc():
             print("   Re-run this QC script after addressing any issues")
 
 # Run the Pre-QC validation
-pre_qc()
+if name == "__main__":
+    ## pull in the parameter that's used with the flag in line 23 of the snakefile.
+    ## there's an example of this from lines 4-12 of check_variant_lineage_mapping.py
+    ## That you can probably copy/paste from.
+    directory = args.flag # you can make a string object from args after parsing
+    pre_qc(directory) # This is just coming from the line above. you could pass args.flag directory but this is maybe more readable
