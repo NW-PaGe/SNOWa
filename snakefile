@@ -13,10 +13,15 @@ rule pre_qc:
         qc="results/qc/pre_qc_report.txt"
     params: 
         copy_runs=config["pre_qc"]["copy_runs"]
+        # The directory info would go here, as a parameter rather than an input.
+        # snakemake can't take directories as inputs (above), so this is a workaround.
+        # you can use checkpoints, but it's kind of complicated and I'm not sure the juice is worth the squeeze
     shell:
         """
         mkdir -p results/qc
-        echo $'{params.copy_runs}' | python3 python_scripts/pre_qc.py > {output.qc}
+        echo $'{params.copy_runs}' | python3 python_scripts/pre_qc.py \
+            --flag {params.whatever} # this has to be pointed to params (above)
+            > {output.qc}
         """
 
 rule merge_data:
