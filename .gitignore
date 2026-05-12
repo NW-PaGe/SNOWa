@@ -1,6 +1,7 @@
 # datasets
 runs/
 new_runs/
+sample_site-counties.csv
 
 # results
 results/
