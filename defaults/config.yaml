@@ -1,7 +1,7 @@
 containerized: "docker://dah0303/wastewater:latest"
 pre_qc:
   copy_runs: "y"
-  directory: "" # this should be the file path for new_runs as a string, and the snakefile 'param' section should grab the value from this key
+  directory: "new_runs/" # this should be the file path for new_runs as a string, and the snakefile 'param' section should grab the value from this key
 plots:
   plot_dir: "results/plots/"
 report:
