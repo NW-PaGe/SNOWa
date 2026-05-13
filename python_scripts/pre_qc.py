@@ -3,6 +3,7 @@ import os
 import pandas as pd
 from datetime import datetime, timedelta
 import shutil
+import argparse
 
 def pre_qc(directory): ## I added directory here - that will come from args.parse (see end of this script)
     """
@@ -11,13 +12,13 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
     The new data files will then be added to the runs folder
     """
 
+    # Check for files in new_runs folder
+    new_runs_path = os.path.join(directory, "*.tsv")
+    new_files = glob.glob(new_runs_path)
+
     print("=== PRE-QC VALIDATION - NEW RUNS ===")
     print("Workflow: new_runs/ → QC validation → runs/ (after approval)")
     print("="*60)
-
-    # Check for files in new_runs folder
-    new_runs_path = "new_runs/*.tsv"  # Adjust path as needed
-    new_files = glob.glob(new_runs_path)
 
     if not new_files:
         print("📂 No TSV files found in new_runs/ folder - skipping Pre-QC validation")
@@ -209,7 +210,7 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
                         print(f"      • {site}: {count} samples")
 
             except FileNotFoundError:
-                print("   ❌ Reference file 'data/sample_site-counties.csv' not found")
+                print("   ❌ Reference file 'defaults/sample_site-counties.csv' not found")
                 print("   📋 Unable to check for new sites - showing all sites:")
                 for site, count in site_counts.items():
                     print(f"      • {site}: {count} samples")
@@ -219,8 +220,120 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
                 for site, count in site_counts.items():
                     print(f"      • {site}: {count} samples")
 
-        # === 5. FLAG DATA QUALITY ISSUES ===
-        print("\n5️⃣ DATA QUALITY ISSUES SUMMARY:")
+        # === 5. CHECK FOR NEW VARIANTS ===
+        print("\n5️⃣ VARIANT COMPARISON:")
+        if 'Variant_name' in new_run_df.columns:
+            # Get all unique variants from new data
+            new_variants_set = set(new_run_df['Variant_name'].dropna().unique())
+            total_new_variants = len(new_variants_set)
+            print(f"   🧬 Total unique variants in new data: {total_new_variants}")
+
+            # Try to load variant reference file
+            try:
+                variant_ref_df = pd.read_csv('defaults/variant_reference.csv')
+                print(f"   📋 Variant reference file loaded: {len(variant_ref_df)} known variants")
+
+                # Get known variants from reference
+                if 'Variant_name' in variant_ref_df.columns:
+                    known_variants_set = set(variant_ref_df['Variant_name'].dropna().unique())
+
+                    # Find new variants
+                    truly_new_variants = new_variants_set - known_variants_set
+                    known_variants_in_data = new_variants_set & known_variants_set
+
+                    print(f"   ✅ Known variants in new data: {len(known_variants_in_data)}")
+
+                    if truly_new_variants:
+                        print(f"\n   🆕 NEW VARIANTS DETECTED ({len(truly_new_variants)} variants):")
+
+                        # Create detailed report for new variants
+                        new_variant_details = []
+
+                        for variant in sorted(truly_new_variants):
+                            # Get all occurrences of this variant
+                            variant_data = new_run_df[new_run_df['Variant_name'] == variant]
+
+                            # Get unique dates where this variant appears
+                            if 'Sample_Collection_Date' in variant_data.columns:
+                                variant_dates = pd.to_datetime(variant_data['Sample_Collection_Date'], errors='coerce').dropna()
+                                unique_dates = sorted(variant_dates.dt.date.unique())
+                                date_range = f"{unique_dates[0]} to {unique_dates[-1]}" if len(unique_dates) > 1 else str(unique_dates[0])
+                            else:
+                                date_range = "N/A"
+                                unique_dates = []
+
+                            # Get sample sites where this variant appears
+                            if 'Sample_Site' in variant_data.columns:
+                                sites = variant_data['Sample_Site'].dropna().unique()
+                                sites_str = ", ".join(sorted(sites))
+                            else:
+                                sites = []
+                                sites_str = "N/A"
+
+                            # Count occurrences
+                            occurrence_count = len(variant_data)
+
+                            # Print to console
+                            print(f"      • {variant}")
+                            print(f"         - First detected: {unique_dates[0] if unique_dates else 'N/A'}")
+                            print(f"         - Date range: {date_range}")
+                            print(f"         - Sample sites: {sites_str}")
+                            print(f"         - Total occurrences: {occurrence_count}")
+
+                            # Store for CSV export
+                            new_variant_details.append({
+                                'Variant_name': variant,
+                                'First_detected': unique_dates[0] if unique_dates else None,
+                                'Last_detected': unique_dates[-1] if len(unique_dates) > 1 else (unique_dates[0] if unique_dates else None),
+                                'Date_range': date_range,
+                                'Sample_sites': sites_str,
+                                'Total_occurrences': occurrence_count,
+                                'Detection_timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                            })
+
+                        # Save new variants to CSV file
+                        new_variants_df = pd.DataFrame(new_variant_details)
+                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                        output_filename = f'results/new_variants_detected_{timestamp}.csv'
+                        new_variants_df.to_csv(output_filename, index=False)
+                        print(f"\n   💾 New variants report saved to: {output_filename}")
+                        print(f"   ⚠️  ACTION REQUIRED: Review new variants and update variant_reference.csv if valid")
+
+                    else:
+                        print("   ✅ No new variants detected - all variants in new data are in reference file")
+
+                    # Show summary of all variants
+                    print(f"\n   📊 VARIANT SUMMARY:")
+                    print(f"      • Known variants: {len(known_variants_in_data)}")
+                    print(f"      • New variants: {len(truly_new_variants)}")
+                    print(f"      • Total variants in new data: {total_new_variants}")
+
+                else:
+                    print("   ❌ 'Variant_name' column not found in variant reference file")
+                    print("   📋 Unable to compare variants - showing all variants in new data:")
+                    variant_counts = new_run_df['Variant_name'].value_counts()
+                    for variant, count in variant_counts.items():
+                        print(f"      • {variant}: {count} occurrences")
+
+            except FileNotFoundError:
+                print("   ⚠️ Variant reference file 'variant_reference.csv' not found")
+                print("   📋 Unable to check for new variants - showing all variants in new data:")
+                variant_counts = new_run_df['Variant_name'].value_counts()
+                for variant, count in variant_counts.head(20).items():  # Show top 20
+                    print(f"      • {variant}: {count} occurrences")
+                if len(variant_counts) > 20:
+                    print(f"      ... and {len(variant_counts) - 20} more variants")
+                print("\n   💡 TIP: Create variant_reference.csv to enable new variant detection")
+
+            except Exception as e:
+                print(f"   ❌ Error reading variant reference file: {e}")
+                print("   📋 Unable to check for new variants")
+
+        else:
+            print("   ❌ 'Variant_name' column not found in new data")
+
+        # === 6. FLAG DATA QUALITY ISSUES ===
+        print("\n6️⃣ DATA QUALITY ISSUES SUMMARY:")
 
         quality_issues = []
 
@@ -247,11 +360,30 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
             if over_one_props > 0:
                 quality_issues.append(f"Variant proportions >1.0 ({over_one_props} values)")
 
-        # Duplicates
-        if 'Sample_ID' in new_run_df.columns and 'Variant_name' in new_run_df.columns:
-            duplicates = new_run_df.duplicated(subset=['Sample_ID', 'Variant_name']).sum()
-            if duplicates > 0:
-                quality_issues.append(f"Duplicate Sample_ID + Variant combinations ({duplicates} rows)")
+        # Duplicates - Check for same Sample_ID with different collection dates
+        if 'Sample_ID' in new_run_df.columns and 'Sample_Collection_Date' in new_run_df.columns:
+            # Group by Sample_ID and check if there are multiple unique collection dates
+            sample_date_check = new_run_df.groupby('Sample_ID')['Sample_Collection_Date'].nunique()
+            problematic_samples = sample_date_check[sample_date_check > 1]
+
+            if len(problematic_samples) > 0:
+                # Get the columns to display
+                cols_to_show = ['Sample_ID', 'Sample_Collection_Date']
+                if 'Lab_ID' in new_run_df.columns:
+                    cols_to_show.append('Lab_ID')
+                if 'Sample_Site' in new_run_df.columns:
+                    cols_to_show.append('Sample_Site')
+
+                # Get unique combinations for problematic samples
+                duplicate_rows = new_run_df[new_run_df['Sample_ID'].isin(problematic_samples.index)][cols_to_show].drop_duplicates()
+
+                # Format as a readable list
+                duplicate_list = "\n      • ".join([
+                    f"Sample_ID: {row['Sample_ID']}, Collection_Date: {row['Sample_Collection_Date']}, Lab_ID: {row.get('Lab_ID', 'N/A')}, Sample_Site: {row.get('Sample_Site', 'N/A')}"
+                    for _, row in duplicate_rows.iterrows()
+                ])
+
+                quality_issues.append(f"Sample_IDs with different collection dates found ({len(problematic_samples)} samples affected):\n      • {duplicate_list}")
 
         # Summary
         if quality_issues:
@@ -269,8 +401,9 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
         # Optional: Move files after review
         print(f"\n🎯 NEXT STEPS:")
         print("1. Review all flagged issues above")
-        print("2. If data looks good, move files to runs/ folder")
-        print("3. If issues found, fix source data and re-run QC")
+        print("2. If new variants detected, review the saved CSV report")
+        print("3. If data looks good, move files to runs/ folder")
+        print("4. If issues found, fix source data and re-run QC")
 
         move_files = input(f"\nMove {len(new_files)} file(s) to runs/ folder? (y/n): ").lower().strip()
 
@@ -297,10 +430,14 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
             print(f"\n📋 Files remain in new_runs/ folder for further review")
             print("   Re-run this QC script after addressing any issues")
 
+
 # Run the Pre-QC validation
-if name == "__main__":
+if __name__ == "__main__":
     ## pull in the parameter that's used with the flag in line 23 of the snakefile.
     ## there's an example of this from lines 4-12 of check_variant_lineage_mapping.py
     ## That you can probably copy/paste from.
-    directory = args.flag # you can make a string object from args after parsing
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--directory")
+    args = parser.parse_args()
+    directory = args.directory # you can make a string object from args after parsing
     pre_qc(directory) # This is just coming from the line above. you could pass args.flag directory but this is maybe more readable
