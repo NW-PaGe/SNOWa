@@ -27,10 +27,24 @@ rule pre_qc:
 
 rule merge_data:
     output: 
-        data="results/combined_output.csv"
+        data="results/raw_combined_output.csv"
+    params:
+        directory=config["merge_data"]["directory"]
     shell:
         """
-        python3 python_scripts/merge_data.py -o {output.data}
+        python3 python_scripts/merge_data.py \
+            --directory {params.directory}  --output {output.data}
+        """
+
+rule metadata_qc_raw:
+    input:
+        data="results/raw_combined_output.csv"
+    output:
+        csv="results/combined_output.csv",
+        log="results/metadata_qc_raw.txt"
+    shell:
+        """
+        python3 python_scripts/metadata_qc_raw.py --input {input.data} --output-csv {output.csv} --output-txt {output.log}
         """
 
 rule add_site_and_classifications:
