@@ -14,23 +14,33 @@ rule pre_qc:
     params: 
         copy_runs=config["pre_qc"]["copy_runs"],
         directory=config["pre_qc"]["directory"]
-        # The directory info would go here, as a parameter rather than an input.
-        # snakemake can't take directories as inputs (above), so this is a workaround.
-        # you can use checkpoints, but it's kind of complicated and I'm not sure the juice is worth the squeeze
     shell:
         """
-        mkdir -p results/qc
         echo $'{params.copy_runs}' | python3 python_scripts/pre_qc.py \
-            --directory {params.directory} # this has to be pointed to params (above)
+            --directory {params.directory} \
             > {output.qc}
         """
 
 rule merge_data:
     output: 
-        data="results/combined_output.csv"
+        data="results/raw_combined_output.csv"
+    params:
+        directory=config["merge_data"]["directory"]
     shell:
         """
-        python3 python_scripts/merge_data.py -o {output.data}
+        python3 python_scripts/merge_data.py \
+            --directory {params.directory}  --output {output.data}
+        """
+
+rule metadata_qc_raw:
+    input:
+        data="results/raw_combined_output.csv"
+    output:
+        csv="results/combined_output.csv",
+        log="results/qc/metadata_qc_raw.txt"
+    shell:
+        """
+        python3 python_scripts/metadata_qc_raw.py --input {input.data} --output-csv {output.csv} --output-txt {output.log}
         """
 
 rule add_site_and_classifications:
@@ -138,6 +148,7 @@ rule md_to_pdf:
 rule final_qc:
     input:
         pre_qc_report='results/qc/pre_qc_report.txt',
+        metadata_qc_report='results/qc/metadata_qc_raw.txt',
         lineage_mapping_qc_report='results/qc/lineage_mapping_qc_report.txt',
         weighted_props_qc_report='results/qc/weighted_proportions_qc_report.txt'
     output:
@@ -145,6 +156,7 @@ rule final_qc:
     shell:
         """
         cat {input.pre_qc_report} \
+        {input.metadata_qc_report} \
         {input.lineage_mapping_qc_report} \
         {input.weighted_props_qc_report} \
         > {output.full_qc_report}
