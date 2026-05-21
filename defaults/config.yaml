@@ -3,7 +3,10 @@ pre_qc:
   copy_runs: "n"
   directory: "new_runs/" # this should be the file path for new_runs as a string, and the snakefile 'param' section should grab the value from this key
 merge_data:
-  directory: "runs/" 
+  directory: "runs/"
+add_sites_and_classes:
+  sites: "defaults/sample_site-counties.csv"
+  classifications: "defaults/ww_lineage_classifications.csv"
 plots:
   plot_dir: "results/plots/"
 report:

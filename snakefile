@@ -45,13 +45,19 @@ rule metadata_qc_raw:
 
 rule add_site_and_classifications:
     input:
-        data="results/combined_output.csv",
-        sites="defaults/sample_site-counties.csv",
-        classifications="defaults/ww_lineage_classifications.csv"
-    output: 'results/ww_data.csv'
+        data="results/combined_output.csv"
+    params:
+        sites=config["add_sites_and_classes"]["sites"],
+        classifications=config["add_sites_and_classes"]["classifications"]
+    output:
+        data="results/ww_data.csv"
     shell:
         """
-        python3 python_scripts/add_site_and_classifications.py
+        python3 python_scripts/add_site_and_classifications.py \
+            --sites {params.sites} \
+            --classifications {params.classifications} \
+            --input {input.data} \
+            --output {output.data}
         """
 
 rule variant_lineage_mapping_qc:
