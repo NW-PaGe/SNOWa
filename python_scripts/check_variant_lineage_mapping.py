@@ -1,15 +1,7 @@
 import pandas as pd
 import argparse
-
-parser = argparse.ArgumentParser(description='This script adds site and lineage classification information to the full data set')
-#parser.add_argument('data', help='The file to which site and lineage classification information is added.')
-parser.add_argument("input",
-                    default="results/ww_data.csv",
-                    help="input file")
-parser.add_argument("--output", "-o",
-                    default="results/lineage_mapping_qc_report.txt",
-                    help="output file")
-args=parser.parse_args()
+import os
+from datetime import datetime
 
 def check_variant_lineage_mapping(full_df):
     """
@@ -23,6 +15,7 @@ def check_variant_lineage_mapping(full_df):
     dict: Summary of mapping issues
     """
     print("=== VARIANT LINEAGE MAPPING QC CHECK ===\n")
+
     # Check for Variant_name entries with missing variant (parent) data
     missing_parent = full_df[full_df['variant'].isnull() & full_df['Variant_name'].notna()]
 
@@ -58,7 +51,7 @@ def check_variant_lineage_mapping(full_df):
             variant_name = row['Variant_name']
             variant = row['variant'] if pd.notna(row['variant']) else 'NO_PARENT'
             count = len(missing_hex[(missing_hex['Variant_name'] == variant_name) & 
-                                    (missing_hex['variant'] == row['variant'])])
+                                   (missing_hex['variant'] == row['variant'])])
             print(f"   - Variant_name: {variant_name} | variant: {variant} | {count} samples")
 
         print(f"\n   These entries will cause visualization issues - check lineage classification file")
@@ -134,6 +127,61 @@ def check_variant_lineage_mapping(full_df):
         'mapped_variants': mapped_variants,
         'hex_mapped_variant_names': hex_mapped_variant_names
     }
-full_df = pd.read_csv(args.input)
-# Usage in your pipeline:
-check_variant_lineage_mapping(full_df)
+
+# create variant reference file to check for new variants when new run data comes in
+def create_variant_reference(full_df, output_path='data/variant_reference.csv'):
+    """
+    Create a reference CSV file with unique Variant_name and variant mappings.
+
+    Parameters:
+    -----------
+    full_df : pandas DataFrame
+        Your full_df containing 'Variant_name' and 'variant' columns
+    output_path : str
+        Where to save the file (default: 'variant_reference.csv')
+
+    Returns:
+    --------
+    pandas DataFrame
+        The reference dataframe that was saved
+    """
+    # Extract unique Variant_name and variant pairs
+    variant_ref = full_df[['Variant_name', 'variant']].drop_duplicates()
+
+    # Sort by Variant_name for easy reference
+    variant_ref = variant_ref.sort_values('Variant_name').reset_index(drop=True)
+
+    # Remove any rows where either value is null
+    variant_ref = variant_ref.dropna()
+
+    # Save to CSV
+    variant_ref.to_csv(output_path, index=False)
+
+    print(f"\n✓ Created {output_path}")
+    print(f"  Total unique mappings: {len(variant_ref)}")
+    print(f"  Unique Variant_names: {variant_ref['Variant_name'].nunique()}")
+    print(f"  Unique CDC variants: {variant_ref['variant'].nunique()}")
+
+
+    # Check if file already exists
+    # Create backup with timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_path = output_path.replace('.csv', f'_backup_{timestamp}.csv')
+
+    # Copy existing file to backup
+    existing_df = pd.read_csv(output_path)
+    existing_df.to_csv(backup_path, index=False)
+    print(f"✓ Backup saved to: {backup_path}")
+
+
+    return variant_ref
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", "-i", required=True, help="path to input file")
+    parser.add_argument("--reference", "-r", required=True, help="path to output variant reference list")
+    args = parser.parse_args()
+    full_df = pd.read_csv(args.input)
+    check_variant_lineage_mapping(full_df)
+    create_variant_reference(full_df, args.reference)
+
