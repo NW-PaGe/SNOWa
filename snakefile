@@ -75,10 +75,10 @@ rule add_population_weights:
     input:
         data="results/ww_data.csv"
     output:
-        data="results/population_weighted_props.csv"
+        data="results/state_weighted_proportions.csv"
     shell:
         """
-        python3 python_scripts/add_population_weights.py {input.data} -o {output.data}
+        python3 python_scripts/add_population_weights.py -i {input.data} -o {output.data}
         """
 
 rule add_county_weights:
@@ -93,7 +93,7 @@ rule add_county_weights:
 
 rule pop_weighted_proportions_qc:
     input:
-        state="results/population_weighted_props.csv",
+        state="results/state_weighted_proportions.csv",
         county="results/county_weighted_proportions.csv"
     output:
         qc="results/qc/weighted_proportions_qc_report.txt"
@@ -104,7 +104,7 @@ rule pop_weighted_proportions_qc:
 
 rule plots:
     input:
-        weighted_props="results/population_weighted_props.csv",
+        weighted_props="results/state_weighted_proportions.csv",
         ww_data="results/ww_data.csv"
     output:
         plot_list='results/plots/plot_list.txt'
