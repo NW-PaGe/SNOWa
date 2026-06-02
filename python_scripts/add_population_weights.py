@@ -1,17 +1,11 @@
 import argparse
 import pandas as pd
-parser = argparse.ArgumentParser(description='This script adds site and lineage classification information to the full data set')
-parser.add_argument("input", help='The file to which site and lineage classification information is added.')
-parser.add_argument("--output", "-o",
-                    default="results/weighted_props.csv",
-                    help="Specifies the output file")
 
-args=parser.parse_args()
-
-def calculate_weighted_variant_prevalence(df: pd.DataFrame) -> pd.DataFrame:
+def calculate_weighted_variant_prevalence(df, output):
     """
     Calculate population-weighted variant prevalence per week using raw summed proportions 
     divided by replicate count per site-week to get average proportions.
+
     """
     # Step 0: round population to whole number
     df['population'] = df['population'].round()
@@ -85,11 +79,17 @@ def calculate_weighted_variant_prevalence(df: pd.DataFrame) -> pd.DataFrame:
     result = weekly_variant_weights.merge(total_population, on='Week', how='left')
     result['weighted_avg'] = result['weighted_sum'] / result['total_population']
 
-    return result.sort_values(['Week', 'variant']).reset_index(drop=True)[['Week', 'variant', 'weighted_avg', 'total_population']]
+    final_result = result.sort_values(['Week', 'variant']).reset_index(drop=True)[['Week', 'variant', 'weighted_avg', 'total_population']]
+    final_result.to_csv(output, index=False)
 
-full_df = pd.read_csv(args.input)
-weighted_proportions = calculate_weighted_variant_prevalence(full_df)
-#writing this out to see if props drop below 1 toward the newer samples
-weighted_proportions.to_csv(args.output, index=False)
-#eliminate lab_ID going forward
+    return final_result
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='This script adds site and lineage classification information to the full data set')
+    parser.add_argument("--input", "-i", required=True, help='The file to which site and lineage classification information is added.')
+    parser.add_argument("--output", "-o", required=True, default="results/state_weighted_proportions.csv", help="Specifies the output file")
+    args=parser.parse_args()
+    df = pd.read_csv(args.input)
+    calculate_weighted_variant_prevalence(df, args.output)
+    print("Population Weight Estimates successfully applied to statewide data")
 
