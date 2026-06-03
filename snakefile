@@ -88,7 +88,7 @@ rule add_county_weights:
         data="results/county_weighted_proportions.csv"
     shell:
         """
-        python3 python_scripts/add_county_weights.py {input.data} -o {output.data}
+        python3 python_scripts/add_county_weights.py -i {input.data} -o {output.data}
         """
 
 rule pop_weighted_proportions_qc:
