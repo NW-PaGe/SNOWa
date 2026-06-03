@@ -79,7 +79,11 @@ def calculate_weighted_variant_prevalence(df, output):
     result = weekly_variant_weights.merge(total_population, on='Week', how='left')
     result['weighted_avg'] = result['weighted_sum'] / result['total_population']
 
-    final_result = result.sort_values(['Week', 'variant']).reset_index(drop=True)[['Week', 'variant', 'weighted_avg', 'total_population']]
+    # Step 14: Enrich with hex_code
+    hex_lookup = df[['variant', 'hex_code']].drop_duplicates()
+    result = result.merge(hex_lookup, on='variant', how='left')
+
+    final_result = result.sort_values(['Week', 'variant']).reset_index(drop=True)[['Week', 'variant', 'weighted_avg', 'total_population', 'hex_code']]
     final_result.to_csv(output, index=False)
 
     return final_result
