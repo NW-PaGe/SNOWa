@@ -2,15 +2,7 @@
 import argparse
 import pandas as pd
 
-parser = argparse.ArgumentParser(description='This script adds site and lineage classification information to the full data set')
-parser.add_argument("input", help='The file to which county-weighted proportions are added.')
-parser.add_argument("--output", "-o",
-                    default="results/county_weighted_props.csv",
-                    help="Specifies the output file")
-
-args=parser.parse_args()
-
-def calculate_county_weighted_variant_prevalence(df: pd.DataFrame) -> pd.DataFrame:
+def calculate_county_weighted_variant_prevalence(df, output):
     """
     Calculate population-weighted variant prevalence per week per county.
     """
@@ -76,10 +68,27 @@ def calculate_county_weighted_variant_prevalence(df: pd.DataFrame) -> pd.DataFra
     hex_lookup = df[['variant', 'hex_code']].drop_duplicates()
     result = result.merge(hex_lookup, on='variant', how='left')
 
-    return result.sort_values(['Week', 'county', 'variant']).reset_index(drop=True)[
+    final_result = result.sort_values(['Week', 'county', 'variant']).reset_index(drop=True)[
         ['Week', 'county', 'variant', 'weighted_sum', 'total_population', 'weighted_avg', 'hex_code']
     ]
+    final_result.to_csv(output, index=False)
 
-full_df = pd.read_csv(args.input)
-county_df = calculate_county_weighted_variant_prevalence(full_df)
-county_df.to_csv(args.output, index=False)
+    return final_result
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='This script adds site and lineage classification information to the full data set')
+    parser.add_argument("--input", "-i", required=True, help='The file to which county-weighted proportions are added.')
+    parser.add_argument("--output", "-o", 
+                    required=True,
+                    default="results/county_weighted_proportions.csv",
+                    help="Specifies the output file")
+    args = parser.parse_args()
+    df = pd.read_csv(args.input)
+    calculate_county_weighted_variant_prevalence(df, args.output)
+    print("Population Weight Estimates successfully applied to county data")
+
+
+
+
+
+
