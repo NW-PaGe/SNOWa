@@ -99,7 +99,10 @@ rule pop_weighted_proportions_qc:
         qc="results/qc/weighted_proportions_qc_report.txt"
     shell:
         """
-        python3 python_scripts/pop_weights_qc.py --county {input.county} --state {input.state} > {output.qc}
+        python3 python_scripts/pop_weights_qc.py \
+            --state {input.state} \
+            --county {input.county} \
+            --output-txt {output.qc}
         """
 
 rule plots:
