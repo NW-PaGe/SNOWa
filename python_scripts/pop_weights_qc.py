@@ -1,21 +1,30 @@
 import pandas as pd
 import argparse
 
-parser = argparse.ArgumentParser(description='This script performs quality control on the population-wieghted variant proportions.')
-parser.add_argument("--county", help='County-weighted proportions file in .csv format')
-parser.add_argument("--state", help='State-weighted proportions file in .csv format')
-parser.add_argument("--output", "-o",
-                    help="Specifies the output file")
-args=parser.parse_args()
+def post_weighting_qc(weighted_proportions, county_proportions=None):
+    """
+    Post-Weighting Quality Control for variant proportion data
 
-def weighted_props_qc(county_proportions, weighted_proportions):
-    # Post-weighting Quality Control
+    Parameters:
+    -----------
+    weighted_proportions : pandas DataFrame
+        DataFrame with columns: Week, variant, weighted_avg, total_population
+    county_proportions : pandas DataFrame, optional
+        DataFrame with county-level proportions (if available)
+
+    Returns:
+    --------
+    dict
+        Summary dictionary with QC metrics
+    """
+
     print("=== POST-WEIGHTING QC REPORT ===\n")
 
     # 1. Validate weighting calculations
     print("1. POPULATION WEIGHTING VALIDATION:")
 
     # Check that weighted proportions sum appropriately per week
+    weighted_proportions = pd.read_csv(weighted_proportions)
     weekly_sums = weighted_proportions.groupby('Week')['weighted_avg'].sum()
     print(f"   Weekly proportion sums - Range: {weekly_sums.min():.3f} to {weekly_sums.max():.3f}")
 
@@ -97,9 +106,8 @@ def weighted_props_qc(county_proportions, weighted_proportions):
 
     # 4. Assess regional distribution patterns
     print("\n4. REGIONAL DISTRIBUTION CHECK:")
-
-    # Check if county_proportions exists (since it might not be in scope)
-    try:
+    county_proportions = pd.read_csv(county_proportions)
+    if county_proportions is not None:
         # Check county coverage
         counties_per_week = county_proportions.groupby('Week')['county'].nunique()
         print(f"   County coverage per week: {counties_per_week.min()} to {counties_per_week.max()} counties")
@@ -124,9 +132,8 @@ def weighted_props_qc(county_proportions, weighted_proportions):
         extreme_county_props = county_proportions[county_proportions['weighted_avg'] > 0.9]
         if len(extreme_county_props) > 0:
             print(f"   ⚠️  {len(extreme_county_props)} county-variant-week combinations >90%")
-
-    except NameError:
-        print("   ⚠️  County-level data not available for regional analysis")
+    else:
+        print("   ⚠️  County-level data not provided - skipping regional analysis")
 
     # 5. Data completeness check
     print("\n5. DATA COMPLETENESS:")
@@ -163,16 +170,29 @@ def weighted_props_qc(county_proportions, weighted_proportions):
 
     print("\n=== END QC REPORT ===")
 
-    # Create summary for potential use in report
+    # Create summary dictionary to return
     qc_summary = {
         'weeks_analyzed': weighted_proportions['Week'].nunique(),
         'variants_detected': weighted_proportions['variant'].nunique(),
         'avg_variants_per_week': weighted_proportions.groupby('Week')['variant'].nunique().mean(),
         'population_coverage_range': (pop_by_week.min(), pop_by_week.max()),
-        'proportion_range': (min_prop, max_prop)
+        'proportion_range': (min_prop, max_prop),
+        'unusual_sum_weeks': len(unusual_sums),
+        'high_proportion_combinations': len(qc_high_props),
+        'negative_proportions': len(qc_negative_props),
+        'sporadic_variants': len(sporadic_variants),
+        'high_variability_variants': len(high_variability),
+        'low_diversity_weeks': len(low_diversity_weeks)
     }
-    return
 
-county = pd.read_csv(args.county)
-state = pd.read_csv(args.state)
-weighted_props_qc(county, state)
+    return qc_summary
+
+if __name__=="__main__":
+    parser = argparse.ArgumentParser(description='This script performs quality control on the population-wieghted variant proportions.')
+    parser.add_argument("--county", help='County-weighted proportions file in .csv format')
+    parser.add_argument("--state", help='State-weighted proportions file in .csv format')
+    parser.add_argument("--output", "-o",
+                    help="Specifies the output file")
+    args=parser.parse_args()
+
+    post_weighting_qc_results = post_weighting_qc(weighted_proportions = args.state, county_proportions = args.county)
