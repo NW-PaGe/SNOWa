@@ -105,6 +105,10 @@ rule pop_weighted_proportions_qc:
             --output-txt {output.qc}
         """
 
+# ADD FILTER BY TIMEFRAME RULE
+
+# ADD COUNTY PROPORTIONS QC RULE
+
 rule plots:
     input:
         weighted_props="results/state_weighted_proportions.csv",
