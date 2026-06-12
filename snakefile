@@ -6,7 +6,10 @@ from glob import glob
 rule all:
     input:
         'results/full_qc_report.txt',
-        "ww_report.pdf"
+        expand(
+            "results/filtered/{plots}_filtered.csv",
+            plots=["stacked_bar", "qc_pa, bubble", "line", "heatmap", "weekly_maps"]
+            )
 
 rule pre_qc:
     output: 
@@ -105,7 +108,18 @@ rule pop_weighted_proportions_qc:
             --output-txt {output.qc}
         """
 
-# ADD FILTER BY TIMEFRAME RULE
+rule filter_by_timeframe:
+    input:
+        state="results/state_weighted_proportions.csv",
+        county="results/county_weighted_proportions.csv"
+    params: config=config["plots"]
+    output:
+        expand(
+            "results/filtered/{plots}_filtered.csv",
+            plots=["stacked_bar", "qc_pa, bubble", "line", "heatmap", "weekly_maps"]
+            )
+    script:
+        "python_scripts/filter_by_timeframe.py"
 
 # ADD COUNTY PROPORTIONS QC RULE
 

@@ -3,6 +3,7 @@ import yaml
 import pandas as pd
 from datetime import datetime
 from datetime import datetime, timedelta
+import argparse
 
 # function to filter data and generate datasets for plotting the figures
 def filter_data_by_timeframe(df, config, plot_name): # CHECK INPUTS
@@ -135,16 +136,20 @@ def prepare_plot_data(weighted_proportions, county_proportions, config):
         (county_proportions, 'weekly_maps_plt')
     ]
 
-    df_stacked_bar, df_qc_pa, df_bubble, df_line, df_heatmap, df_weekly_maps = [
+    stacked_bar, qc_pa, bubble, line, heatmap, weekly_maps = [
         filter_data_by_timeframe(df, config, config_key)
         for df, config_key in plot_configs
     ]
 
-    # SAVE DFS
-
-    return df_stacked_bar, df_qc_pa, df_bubble, df_line, df_heatmap, df_weekly_maps
-
-# Usage: # FIX USAGE - NEED TO SAVE DF AS CSV
-#df_stacked_bar, df_qc_pa, df_bubble, df_line, df_heatmap, df_weekly_maps = prepare_plot_data(weighted_proportions, county_proportions, config)
+    # I removed the indexes - remove index=False if those are needed downstream
+    for df in [stacked_bar, qc_pa, bubble, line, heatmap, weekly_maps]:
+        df.to_csv(f"{df}_filtered.csv", index=False)
 
 # INSERT MAIN WRAPPER
+if __name__ == '__main__':
+    
+    weighted_proportions = pd.read_csv(snakemake.input.state)
+    county_proportions = pd.read_csv(snakemake.input.county)
+    config=snakemake.params.config
+
+    prepare_plot_data(weighted_proportions, county_proportions, config)
