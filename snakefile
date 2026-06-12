@@ -8,7 +8,7 @@ rule all:
         'results/full_qc_report.txt',
         expand(
             "results/filtered/{plots}_filtered.csv",
-            plots=["stacked_bar", "qc_pa, bubble", "line", "heatmap", "weekly_maps"]
+            plots=['stacked_bar_plt', 'qc_pa_plt', 'bubble_plt', 'line_plt', 'heatmap_plt', 'weekly_maps_plt']
             )
 
 rule pre_qc:
@@ -112,11 +112,11 @@ rule filter_by_timeframe:
     input:
         state="results/state_weighted_proportions.csv",
         county="results/county_weighted_proportions.csv"
-    params: config=config["plots"]
+    params: config=config["plots"]["filter"]
     output:
         expand(
             "results/filtered/{plots}_filtered.csv",
-            plots=["stacked_bar", "qc_pa, bubble", "line", "heatmap", "weekly_maps"]
+            plots=['stacked_bar_plt', 'qc_pa_plt', 'bubble_plt', 'line_plt', 'heatmap_plt', 'weekly_maps_plt']
             )
     script:
         "python_scripts/filter_by_timeframe.py"
