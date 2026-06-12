@@ -74,6 +74,7 @@ def filter_data_by_timeframe(df, config, plot_name): # CHECK INPUTS
             )
 
         # Get latest date point in the dataset
+        df['Week'] = pd.to_datetime(df['Week'])
         most_recent_date = df['Week'].max()
 
         # Calculate cutoff date
@@ -136,14 +137,9 @@ def prepare_plot_data(weighted_proportions, county_proportions, config):
         (county_proportions, 'weekly_maps_plt')
     ]
 
-    stacked_bar, qc_pa, bubble, line, heatmap, weekly_maps = [
-        filter_data_by_timeframe(df, config, config_key)
-        for df, config_key in plot_configs
-    ]
-
-    # I removed the indexes - remove index=False if those are needed downstream
-    for df in [stacked_bar, qc_pa, bubble, line, heatmap, weekly_maps]:
-        df.to_csv(f"{df}_filtered.csv", index=False)
+    for df, config_key in plot_configs:
+        filtered = filter_data_by_timeframe(df, config, config_key)
+        filtered.to_csv(f"results/filtered/{config_key}_filtered.csv", index=False)
 
 # INSERT MAIN WRAPPER
 if __name__ == '__main__':
@@ -151,5 +147,5 @@ if __name__ == '__main__':
     weighted_proportions = pd.read_csv(snakemake.input.state)
     county_proportions = pd.read_csv(snakemake.input.county)
     config=snakemake.params.config
-
+    print(config)
     prepare_plot_data(weighted_proportions, county_proportions, config)

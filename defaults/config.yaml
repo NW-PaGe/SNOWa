@@ -39,48 +39,48 @@ plots:
   #     date_range:
   #       start_date: 2024-01-01
   #       end_date:   2024-06-30
-
+  filter:
   # date parameters for weekly variant proportions (stacked bar plot)
-  stacked_bar_plt:
-    timeframe:
-      recency:
-        value: 1
-        unit: year
+    stacked_bar_plt:
+      timeframe:
+        recency:
+          value: 1
+          unit: year
 
-  # date parameters for QC timeline of detections (QC presence/absence plot)
-  qc_pa_plt:
-    timeframe:
-      recency:
-        value: 1
-        unit: year
+    # date parameters for QC timeline of detections (QC presence/absence plot)
+    qc_pa_plt:
+      timeframe:
+        recency:
+          value: 1
+          unit: year
 
-  # date parameters for timeline of detections (bubble plot)
-  bubble_plt:
-    timeframe:
-      recency:
-        value: 1
-        unit: year
+    # date parameters for timeline of detections (bubble plot)
+    bubble_plt:
+      timeframe:
+        recency:
+          value: 1
+          unit: year
 
-  # date parameters for top 3 variants (line plt)
-  line_plt:
-    timeframe:
-      recency:
-        value: 12
-        unit: weeks
+    # date parameters for top 3 variants (line plt)
+    line_plt:
+      timeframe:
+        recency:
+          value: 12
+          unit: weeks
 
-  # date parameters for heatmap of prevalent variants (heatmap)
-  heatmap_plt:
-    timeframe:
-      recency:
-        value: 12
-        unit: weeks
+    # date parameters for heatmap of prevalent variants (heatmap)
+    heatmap_plt:
+      timeframe:
+        recency:
+          value: 12
+          unit: weeks
 
-  # date parameters for map of dominant variants (weekly maps)
-  weekly_maps_plt:
-    timeframe:
-      recency:
-        value: 12
-        unit: weeks
+    # date parameters for map of dominant variants (weekly maps)
+    weekly_maps_plt:
+      timeframe:
+        recency:
+          value: 12
+          unit: weeks
 
 
 report:
