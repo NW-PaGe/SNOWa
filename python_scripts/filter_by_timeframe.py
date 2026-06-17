@@ -1,26 +1,25 @@
-
 import yaml
 import pandas as pd
-from datetime import datetime
-from datetime import datetime, timedelta
+import os
 import argparse
 
 # function to filter data and generate datasets for plotting the figures
-def filter_data_by_timeframe(df, config, plot_name): # CHECK INPUTS
+def filter_data_by_timeframe(df, config, plot_name):
     """
     Filter dataframe based on timeframe specified in config for a specific plot.
 
     Args:
         df: DataFrame to filter
-        config: Full config dictionary loaded from config.yaml
+        config: Filter-level config dict (i.e., config['plots']['filter'] from config.yaml),
+            keyed by plot name
         plot_name: Name of the plot (e.g., 'stacked_bar_plt', 'bubble_plt', etc.)
 
     Config structure:
         plot_name:
-          timeframe: 
-            recency: {"value": 6, "unit": "month"}
-            OR
-            date_range: {"start_date": "2024-01-01", "end_date": "2024-12-31"}
+            timeframe: 
+                recency: {"value": 6, "unit": "month"}
+                OR
+                date_range: {"start_date": "2024-01-01", "end_date": "2024-12-31"}
     """
     # Check if plot_name exists in config
     if plot_name not in config:
@@ -32,6 +31,7 @@ def filter_data_by_timeframe(df, config, plot_name): # CHECK INPUTS
         raise ValueError(f"Config for '{plot_name}' must contain 'timeframe' field")
 
     timeframe = plot_config['timeframe']
+    df['Week'] = pd.to_datetime(df['Week'])
 
     if 'recency' in timeframe:
         recency = timeframe['recency']
@@ -74,7 +74,6 @@ def filter_data_by_timeframe(df, config, plot_name): # CHECK INPUTS
             )
 
         # Get latest date point in the dataset
-        df['Week'] = pd.to_datetime(df['Week'])
         most_recent_date = df['Week'].max()
 
         # Calculate cutoff date
@@ -128,6 +127,8 @@ def filter_data_by_timeframe(df, config, plot_name): # CHECK INPUTS
 def prepare_plot_data(weighted_proportions, county_proportions, config):
     """Filter data for multiple plot types based on configuration."""
 
+    os.makedirs("results/filtered", exist_ok=True)
+
     plot_configs = [
         (weighted_proportions, 'stacked_bar_plt'),
         (weighted_proportions, 'qc_pa_plt'),
@@ -141,11 +142,25 @@ def prepare_plot_data(weighted_proportions, county_proportions, config):
         filtered = filter_data_by_timeframe(df, config, config_key)
         filtered.to_csv(f"results/filtered/{config_key}_filtered.csv", index=False)
 
-# INSERT MAIN WRAPPER
 if __name__ == '__main__':
-    
-    weighted_proportions = pd.read_csv(snakemake.input.state)
-    county_proportions = pd.read_csv(snakemake.input.county)
-    config=snakemake.params.config
-    print(config)
-    prepare_plot_data(weighted_proportions, county_proportions, config)
+    try:
+        snakemake
+        state_path = snakemake.input.state
+        county_path = snakemake.input.county
+        filter_config = snakemake.params.config
+    except NameError:
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--state', '-s', required=True, help='path to state proportions CSV')
+        parser.add_argument('--county', '-c',  required=True, help='path to county proportions CSV')
+        parser.add_argument('--config', '-f', required=True, help='path to config.yaml')
+        args = parser.parse_args()
+
+        state_path = args.state
+        county_path = args.county
+        with open(args.config) as f:
+            full_config = yaml.safe_load(f)
+        filter_config = full_config['plots']['filter']
+
+    weighted_proportions = pd.read_csv(state_path)
+    county_proportions = pd.read_csv(county_path)
+    prepare_plot_data(weighted_proportions, county_proportions, filter_config)
