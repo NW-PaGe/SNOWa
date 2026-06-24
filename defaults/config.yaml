@@ -1,4 +1,9 @@
-containerized: "docker://dah0303/wastewater:latest"
+# containers
+# original container (will work prior to updating the plottting script)
+#containerized: "docker://dah0303/wastewater:latest"
+
+# current container
+containerized: "docker://lunnwa/snowa:latest"
 
 pre_qc:
   copy_runs: "n"
