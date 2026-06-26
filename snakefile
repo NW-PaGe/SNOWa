@@ -5,6 +5,7 @@ from glob import glob
 
 rule all:
     input:
+        'results/qc/weekly_county_report.txt',
         'results/full_qc_report.txt',
         expand(
             "results/filtered/{plots}_filtered.csv",
