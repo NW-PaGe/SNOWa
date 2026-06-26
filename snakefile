@@ -130,7 +130,7 @@ rule weekly_county_report:
         report="results/qc/weekly_county_report.txt"
     shell: 
         """
-        python3 python_scripts/county_weekly_report.py -i  {input.county} > {output.report}
+        python3 python_scripts/weekly_county_report.py -i  {input.county} > {output.report}
         """
 
 rule plots:
