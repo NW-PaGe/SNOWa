@@ -121,7 +121,16 @@ rule filter_by_timeframe:
     script:
         "python_scripts/filter_by_timeframe.py"
 
-# ADD COUNTY PROPORTIONS QC RULE
+# ADD WEEKLY COUNTY PROPORTIONS REPORT FOR WEEKLY MAPS QC
+rule weekly_county_report:
+    input:
+        county="results/county_weighted_proportions.csv"
+    output:
+        report="results/qc/weekly_county_report.txt"
+    shell: 
+        """
+        python3 python_scripts/county_weekly_report.py -i  {input.county} > {output.report}
+        """
 
 rule plots:
     input:
