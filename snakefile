@@ -125,7 +125,7 @@ rule filter_by_timeframe:
 # ADD WEEKLY COUNTY PROPORTIONS REPORT FOR WEEKLY MAPS QC
 rule weekly_county_report:
     input:
-        county="results/county_weighted_proportions.csv"
+        county="results/filtered/weekly_maps_plt_filtered.csv"
     output:
         report="results/qc/weekly_county_report.txt"
     shell: 

@@ -2,20 +2,20 @@ import pandas as pd
 import argparse
 
 # QC Check for County Proportions - Weekly Breakdown by County for Comparison with the Weekly Maps of Dominant Variants by County
-def weekly_county_props_report(county_proportions):
+def weekly_county_props_report(weekly_maps_plt_filtered):
     """
     Show variant breakdown for each county for all weeks.
 
     Parameters:
     -----------
-    county_proportions : DataFrame
-        Output from calculate_county_weighted_variant_prevalence()
+    weekly_maps_plt_filtered : DataFrame
+        Output from filter_by_timeframe()
 
     Returns:
     --------
     None (prints detailed breakdown)
     """
-    df = county_proportions
+    df = weekly_maps_plt_filtered
 
     # Get all weeks, sorted chronologically
     all_weeks = df['Week'].drop_duplicates().sort_values().tolist()
@@ -63,7 +63,7 @@ def weekly_county_props_report(county_proportions):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='This script adds site and lineage classification information to the full data set')
-    parser.add_argument("--input", "-i", required=True, help='Path to County Proportions CSV')
+    parser.add_argument("--input", "-i", required=True, help='Path to weekly maps plt dataset CSV')
     args=parser.parse_args()
-    county_proportions = pd.read_csv(args.input)
-    weekly_county_props_report(county_proportions)
+    weekly_maps_plt_filtered = pd.read_csv(args.input)
+    weekly_county_props_report(weekly_maps_plt_filtered)
