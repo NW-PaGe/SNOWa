@@ -199,3 +199,5 @@ rule final_qc:
         {input.weighted_props_qc_report} \
         > {output.full_qc_report}
         """
+
+ruleorder:  pre_qc > merge_data > metadata_qc_raw > add_site_and_classifications > variant_lineage_mapping_qc > add_population_weights > add_county_weights > pop_weighted_proportions_qc > filter_by_timeframe > weekly_county_report > plots > report > md_to_pdf > final_qc
