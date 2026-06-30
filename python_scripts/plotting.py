@@ -91,6 +91,21 @@ def normalize_week_column(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def make_complete_week_index(df: pd.DataFrame, week_col: str = "Week") -> pd.DatetimeIndex:
+    """
+    Generate complete weekly dates from the min to max Week in this dataframe.
+
+    This is per-plot, not global, so plots with different configured timeframes
+    keep their own time windows while making skipped sampling weeks visible.
+    """
+    weeks = pd.to_datetime(df[week_col].dropna().unique())
+
+    if len(weeks) == 0:
+        return pd.DatetimeIndex([])
+
+    return pd.date_range(start=weeks.min(), end=weeks.max(), freq="7D")
+
+
 def make_variant_color_map(df: pd.DataFrame) -> Dict[str, str]:
     """Build variant -> hex color mapping from a dataframe."""
     if "variant" not in df.columns or "hex_code" not in df.columns:
@@ -170,18 +185,19 @@ def pivot_to_table(df_stacked_bar: pd.DataFrame) -> pd.DataFrame:
     """
     Pivot weighted proportions into wide format.
 
-    Rows = Week
-    Columns = variants
-    Values = weighted_avg
+    Missing weeks are retained as zero-filled rows so sampling gaps are visible.
     """
+    complete_weeks = make_complete_week_index(df_stacked_bar)
+
     pivot_table = df_stacked_bar.pivot_table(
         index="Week",
         columns="variant",
         values="weighted_avg",
         fill_value=0,
         aggfunc="sum",
-    )
-    return pivot_table.sort_index()
+    ).sort_index()
+
+    return pivot_table.reindex(complete_weeks, fill_value=0)
 
 
 def plot_stacked_bar(df_stacked_bar: pd.DataFrame, table_threshold: float = 0.001):
@@ -306,9 +322,9 @@ def plot_variant_presence_by_week(df: pd.DataFrame):
         )
 
     df_detected = df[df["weighted_avg"] > 0].copy()
-    week_labels = sorted(df["Week"].unique())
+    week_labels = make_complete_week_index(df)
 
-    if df_detected.empty or not week_labels:
+    if df_detected.empty or len(week_labels) == 0:
         return make_empty_figure(
             "Weekly Detection of SARS-CoV-2 Variants in Wastewater",
             "No detected variants available after filtering.",
@@ -366,6 +382,7 @@ def plot_variant_bubble_chart(weighted_df: pd.DataFrame, threshold: float = 0.01
     This returns a matplotlib Figure and is saved as JPEG like the other
     static matplotlib plots.
     """
+    complete_weeks = make_complete_week_index(weighted_df)
     weighted_df = weighted_df[weighted_df["weighted_avg"] > threshold].copy()
 
     if weighted_df.empty:
@@ -430,7 +447,7 @@ def plot_variant_bubble_chart(weighted_df: pd.DataFrame, threshold: float = 0.01
         "#440154",
     ]
 
-    weeks = sorted(weighted_df["Week"].unique())
+    weeks = complete_weeks
     variants = (
         weighted_df.groupby("variant")["Week"]
         .min()
@@ -535,13 +552,16 @@ def create_line_graph(weighted_df: pd.DataFrame, top_n: int = 3):
         aggfunc="sum",
     ).sort_index()
 
+    complete_weeks = make_complete_week_index(weighted_df)
+    pivoted = pivoted.reindex(complete_weeks)
+
     if pivoted.empty:
         return make_empty_figure(
             "Top Recent SARS-CoV-2 Variants in Wastewater, Washington State",
             "No plottable variant proportions available.",
         )
 
-    pivoted.index = pd.to_datetime(pivoted.index).strftime("%Y-%m-%d")
+    pivoted.index = [week_to_date(week) for week in pivoted.index]
     variant_colors = make_variant_color_map(weighted_df)
 
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -550,20 +570,25 @@ def create_line_graph(weighted_df: pd.DataFrame, top_n: int = 3):
         if variant not in pivoted.columns:
             continue
 
+        series = pivoted[variant]
         ax.plot(
             pivoted.index,
-            pivoted[variant],
+            series,
             label=variant,
             color=variant_colors.get(variant, "black"),
         )
-        ax.text(
-            pivoted.index[-1],
-            pivoted[variant].iloc[-1],
-            variant,
-            fontsize=11,
-            ha="left",
-            va="center",
-        )
+
+        # Place the label at the last observed value, not at a missing week.
+        last_valid_week = series.last_valid_index()
+        if last_valid_week is not None:
+            ax.text(
+                last_valid_week,
+                series.loc[last_valid_week],
+                variant,
+                fontsize=11,
+                ha="left",
+                va="center",
+            )
 
     ax.set_title("Top Recent SARS-CoV-2 Variants in Wastewater, Washington State")
     ax.set_ylabel("Proportion")
@@ -600,6 +625,9 @@ def create_filtered_heatmap(weighted_df: pd.DataFrame, min_percent: float = 10):
         )
         * 100
     )
+
+    complete_weeks = make_complete_week_index(weighted_df)
+    pivot = pivot.reindex(columns=complete_weeks, fill_value=0)
 
     filtered = pivot[pivot.max(axis=1) >= min_percent]
 
@@ -715,7 +743,8 @@ def plot_dominant_variant_maps(config: Mapping, weighted_df: pd.DataFrame):
     weighted_df["Week_dt"] = pd.to_datetime(weighted_df["Week"])
     weighted_df["Week_formatted"] = weighted_df["Week_dt"].dt.strftime("%Y-%m-%d")
 
-    weeks_to_plot = sorted(weighted_df["Week_formatted"].unique())
+    complete_weeks = make_complete_week_index(weighted_df)
+    weeks_to_plot = [week.strftime("%Y-%m-%d") for week in complete_weeks]
 
     if len(weeks_to_plot) == 0:
         return make_empty_figure(
