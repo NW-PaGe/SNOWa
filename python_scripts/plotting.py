@@ -1,3 +1,11 @@
+# REVIEW COPY ONLY
+# Purpose: use this as a code-review / GitHub-diff guide before applying the refactor.
+# The comments are intentionally marked with REVIEW so they are easy to search/remove later.
+# This file is not meant to be the final production script.
+
+# REVIEW: Imports currently mix plotting libraries, geospatial libraries, and CLI support.
+# REVIEW: In the refactor, keep imports needed by actual functions, and remove unused ones.
+# REVIEW: This original script uses os.path.join later but does not import os, which causes a runtime error for maps.
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -7,10 +15,17 @@ import geopandas as gpd
 import seaborn as sns
 import altair as alt
 import argparse
+import os
+
+# REVIEW: argparse is imported but the original script does not yet define a command-line wrapper.
+# REVIEW: The refactor should support both Snakemake and command-line testing, similar to filter_by_timeframe.py.
 
 ##############################################################################
 
+# REVIEW: Section starts with stacked bar plotting.
+# REVIEW: This is a good candidate for a small wrapper: dataframe -> pivot table -> matplotlib Figure.
 # PLOT STACKED BAR PLOT
+# REVIEW: This helper is useful and can stay. It converts long-format filtered data into wide format for plotting.
 def pivot_to_table(df_stacked_bar):
     """
     Pivot the weighted proportions into a wide format table:
@@ -21,6 +36,8 @@ def pivot_to_table(df_stacked_bar):
     )
     return pivot_table
 
+# REVIEW: This function currently both creates AND saves the figure.
+# REVIEW: For Snakemake, prefer: create figure here, save in the main wrapper using the requested output path.
 def plot_figure(pivot_table, df_stacked_bar):
     """
     Plot a stacked bar chart of variant proportions by week using Freyja hex codes,
@@ -52,6 +69,8 @@ def plot_figure(pivot_table, df_stacked_bar):
     recent_data = pivot_table.iloc[-1]
 
     # Filter to only include variants with proportion >= 0.001 (0.1%)
+    # REVIEW: This table threshold is hardcoded.
+    # REVIEW: Later, consider moving it to config, e.g. plots.params.stacked_bar_plt.table_threshold.
     threshold = 0.001
     recent_data_filtered = recent_data[recent_data >= threshold].sort_values(ascending=False)
 
@@ -60,6 +79,7 @@ def plot_figure(pivot_table, df_stacked_bar):
     gs = gridspec.GridSpec(1, 2, width_ratios=[4, 1], wspace=0.25)
 
     # debugging nan color error
+    # REVIEW: Debug print. Useful during development, but remove or replace with logging before final pipeline use.
     print(pivot_table.columns)
 
     # Main plot on the left - larger
@@ -127,6 +147,8 @@ def plot_figure(pivot_table, df_stacked_bar):
 
 
     plt.tight_layout()
+    # REVIEW: Hardcoded output path. This is one of the main refactor targets.
+    # REVIEW: The function should return fig; the wrapper should save to results/plots/stacked_bar_plt.jpeg.
     plt.savefig("results/proportions_plot.jpeg", dpi=300, bbox_inches='tight')
     return fig
 
@@ -134,6 +156,8 @@ def plot_figure(pivot_table, df_stacked_bar):
 
 ##############################################################################
 
+# REVIEW: Presence/absence plot section.
+# REVIEW: Input should be the already-filtered qc_pa_plt CSV, not raw state-level data.
 # PRESENCE/ABSENCE QA PLOT
 
 def plot_variant_presence_by_week(df):
@@ -148,6 +172,7 @@ def plot_variant_presence_by_week(df):
     df_detected = df[df['weighted_avg'] > 0].copy()
 
     # Step 2: Get all unique weeks from the original data (for the full timeline)
+    # REVIEW: Sorting weeks is good. Make sure Week is converted to datetime before plotting for consistent order.
     week_labels = sorted(df['Week'].unique())
 
     # Step 3: Create variant-to-color map
@@ -198,6 +223,7 @@ def plot_variant_presence_by_week(df):
     ax.set_title("Weekly Detection of SARS-CoV-2 Variants in Wastewater (Colored by Hex Code), Washington State")
     ax.grid(False)
     plt.tight_layout()
+    # REVIEW: Hardcoded output path. The refactor should save this as results/plots/qc_pa_plt.jpeg.
     plt.savefig('results/timeline_updated.jpeg', dpi=300)
     return fig
 
@@ -205,8 +231,12 @@ def plot_variant_presence_by_week(df):
 
 ##############################################################################
 
+# REVIEW: Bubble/timeline plot section.
+# REVIEW: The original implementation uses Altair, which is fine in notebooks but can add PNG export dependencies in a container.
 # TIMELINE OF DETECTIONS PLOT
 
+# REVIEW: This function should return a chart/figure only. Saving should happen elsewhere.
+# REVIEW: threshold is a plot parameter and could eventually move to config.
 def plot_variant_bubble_chart(weighted_df, threshold=0.01):
     """
     Create an interactive bubble plot of SARS-CoV-2 variants by week with uniform circle sizes.
@@ -218,12 +248,15 @@ def plot_variant_bubble_chart(weighted_df, threshold=0.01):
     """
 
     # Filter out zero proportions and anything below threshold
+    # REVIEW: Threshold uses >, not >=. That is probably fine, but document the intended behavior if 1% exactly matters.
     weighted_df = weighted_df[weighted_df['weighted_avg'] > threshold].copy()
 
     # Convert weighted_avg to percentage for better display
     weighted_df['percentage'] = weighted_df['weighted_avg'] * 100
 
     # Create size bins with new specification
+    # REVIEW: The comment says uniform circle sizes, but the code creates size bins for color categories.
+    # REVIEW: Consider renaming size_bin to proportion_bin because the circles are not actually sized by this value.
     def assign_size_bin(pct):
         if pct < 2:
             return 1
@@ -267,6 +300,8 @@ def plot_variant_bubble_chart(weighted_df, threshold=0.01):
     weighted_df['size_label'] = weighted_df['size_bin'].map(size_labels)
 
     # Viridis-inspired color palette with white for lowest bin (11 colors)
+    # REVIEW: Palette is hardcoded here and reused conceptually in the heatmap.
+    # REVIEW: Consider a shared helper or config section later if you want consistent bins/colors across plots.
     viridis_colors = [
         '#ffffff',  # white (1-2% - lowest)
         '#fde724',  # bright yellow
@@ -324,6 +359,9 @@ def plot_variant_bubble_chart(weighted_df, threshold=0.01):
 
     return chart
 
+# REVIEW: IMPORTANT: This block runs immediately when the script runs.
+# REVIEW: It references df_bubble, which is undefined in pipeline execution.
+# REVIEW: This should be removed, commented out, or moved under if __name__ == "__main__" for local testing only.
 # Example usage for marimo
 timeline = plot_variant_bubble_chart(
      #weighted_proportions, 
@@ -332,6 +370,8 @@ timeline = plot_variant_bubble_chart(
      threshold=0.01  # 1% threshold
 )
 timeline.save('results/bubble_plot.html')
+# REVIEW: Static Altair PNG export depends on vl-convert being available in the container.
+# REVIEW: If that dependency is not guaranteed, either save HTML or make a matplotlib PNG version.
 timeline.save('results/bubble_plot.png', dpi=600, scale_factor=4, engine='vl-convert')
 
 
@@ -339,7 +379,11 @@ timeline.save('results/bubble_plot.png', dpi=600, scale_factor=4, engine='vl-con
 
 ##############################################################################
 
+# REVIEW: Line graph section.
+# REVIEW: This should use the filtered line_plt dataframe produced by filter_by_timeframe.py.
 # PLOT LINE GRAPH
+# REVIEW: top_n is currently hardcoded by default. Later it can become a config parameter.
+# REVIEW: This ranks by mean weighted_avg across the filtered window, not necessarily the most recent week. Confirm that this is intended.
 def get_top_variants(weighted_df, top_n=3):
     top_variants = (
         weighted_df.groupby('variant')['weighted_avg']
@@ -353,12 +397,16 @@ def get_top_variants(weighted_df, top_n=3):
     return top_variants
 
 
+# REVIEW: This function expects top_variants to be calculated beforehand.
+# REVIEW: A small wrapper can combine get_top_variants() + create_line_graph() for the dispatcher.
 def create_line_graph(weighted_df, top_variants):   
     # Filter to top variants and recent weeks only
     filtered = weighted_df[
         (weighted_df['variant'].isin(top_variants)) 
     ]
 
+    # REVIEW: pivot() will fail if there are duplicate Week/variant rows.
+    # REVIEW: If duplicates are possible, use pivot_table(..., aggfunc="sum" or "mean") instead.
     pivoted = filtered.pivot(index='Week', columns='variant', values='weighted_avg').fillna(0)
     pivoted.index = pd.to_datetime(pivoted.index).strftime('%Y-%m-%d')
 
@@ -382,13 +430,17 @@ def create_line_graph(weighted_df, top_variants):
     ax.tick_params(axis='x', rotation=45)
     ax.legend(title='Variant', bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
+    # REVIEW: Hardcoded output path. The refactor should save this as results/plots/line_plt.jpeg.
     plt.savefig('results/line_graph.jpeg', dpi=300)
     return fig
 
 ##############################################################################
 
+# REVIEW: Heatmap section.
+# REVIEW: This should use the filtered heatmap_plt dataframe produced by filter_by_timeframe.py.
 # PLOT HEATMAP
 
+# REVIEW: min_percent is a plot parameter. Later, move it to config if you want reproducible figure settings.
 def create_filtered_heatmap(weighted_df, min_percent=10):
     """
     Create a heatmap of SARS-CoV-2 variants showing proportions over recent weeks.
@@ -398,7 +450,9 @@ def create_filtered_heatmap(weighted_df, min_percent=10):
     - min_percent: Minimum percentage threshold to include a variant (default 10%)
     """
 
+   # REVIEW: Minor formatting issue: this comment is indented with 3 spaces instead of 4. Not fatal, but clean up during refactor.
    # Pivot table
+    # REVIEW: Like the line plot, pivot() assumes one row per variant/week. Use pivot_table if duplicates are possible.
     pivot = weighted_df.pivot(index='variant', columns='Week', values='weighted_avg').fillna(0) * 100
     # Filter variants by min_percent threshold
     filtered = pivot[pivot.max(axis=1) >= min_percent]
@@ -451,14 +505,20 @@ def create_filtered_heatmap(weighted_df, min_percent=10):
     plt.title('Variants ≥10% in Any Week (Past 12 Weeks), Washington State')
     plt.xlabel('Sample Collection Week')
     plt.ylabel('Variant')
+    # REVIEW: Hardcoded output path. The refactor should save this as results/plots/heatmap_plt.jpeg.
+    # REVIEW: Also consider calling tight_layout before savefig, not after.
     plt.savefig('results/heatmap.jpeg', dpi=300, bbox_inches='tight')
     plt.tight_layout()
     return plt.gcf()
 
 ##############################################################################
 
+# REVIEW: Weekly map section.
+# REVIEW: This is the most config-dependent plot because it needs shapefiles and non-sampled county metadata.
 # PLOT WEEKLY DOMINANT VARIANTS
 
+# REVIEW: Function signature is different from the other plots because it needs config.
+# REVIEW: In the dispatcher, this plot should be special-cased or passed config consistently.
 def plot_dominant_variant_maps(config, weighted_df):
     """
     Generates weekly maps of the dominant SARS-CoV-2 variant in each WA county.
@@ -479,6 +539,8 @@ def plot_dominant_variant_maps(config, weighted_df):
             non_sampled_counties: 'defaults/non_sampled_counties.csv'
     """
 
+    # REVIEW: This comment says "x" but the code is really validating geographic_data config.
+    # REVIEW: Update the wording so future readers know this block validates map inputs.
     # Step 1. Check if x exists in config
 
     # Check if geographic_data exists in config
@@ -497,10 +559,13 @@ def plot_dominant_variant_maps(config, weighted_df):
 
     # Step 2  Set up shapefile and non_sampled_counties
     # Build shapefile path
+    # REVIEW: This line requires import os at the top of the script. The original script is missing that import.
     shapefile_path = os.path.join(geographic_data['shapefiles_dir'], 'WA_County_Boundaries.shp')
 
     # Read non-sampled counties from CSV
     try:
+        # REVIEW: This CSV is required here. If the file is optional, handle missing file by using an empty list.
+        # REVIEW: The expected column name is non_sampled_county.
         non_sampled_df = pd.read_csv(geographic_data['non_sampled_counties'])
         NON_SAMPLED_COUNTIES = non_sampled_df['non_sampled_county'].tolist()
     except FileNotFoundError:
@@ -508,6 +573,8 @@ def plot_dominant_variant_maps(config, weighted_df):
 
     # Step 3: Load and normalize shapefile
     try:
+        # REVIEW: Shapefiles require companion files, usually .shp, .shx, .dbf, and .prj.
+        # REVIEW: If any are missing, geopandas may fail even if the .shp path exists.
         wa_shape = gpd.read_file(shapefile_path)
     except FileNotFoundError:
         raise FileNotFoundError(f"Shapefile not found at: {shapefile_path}")
@@ -522,6 +589,7 @@ def plot_dominant_variant_maps(config, weighted_df):
 
     # Step 5: Plotting
     # 5.a Get unique weeks to plot
+    # REVIEW: unique() preserves current dataframe order. Sort explicitly if the weekly map panels should always be chronological.
     weeks_to_plot = weighted_df['Week_formatted'].unique()
 
     if len(weeks_to_plot) == 0:
@@ -553,6 +621,8 @@ def plot_dominant_variant_maps(config, weighted_df):
             continue
 
         # Find dominant variant per county
+        # REVIEW: This chooses the dominant variant per county by max weighted_avg.
+        # REVIEW: If ties matter, this silently keeps the first max row. That may be acceptable, but document it.
         dominant = week_data.loc[week_data.groupby('county')['weighted_avg'].idxmax()]
 
         # Merge with shapefile
@@ -597,6 +667,8 @@ def plot_dominant_variant_maps(config, weighted_df):
         ]
 
         for idx, row in counties_with_data.iterrows():
+            # REVIEW: Centroids on geographic CRS can generate warnings or slightly odd label placement.
+            # REVIEW: Fine for now, but projected CRS would be cleaner for production cartography.
             centroid = row.geometry.centroid
             percentage = row['weighted_avg'] * 100
 
@@ -663,12 +735,17 @@ def plot_dominant_variant_maps(config, weighted_df):
 
     # Step 7 plotting
     plt.tight_layout()
+    # REVIEW: Hardcoded output path. The refactor should save this as results/plots/weekly_maps_plt.jpeg.
     plt.savefig('results/dominant_variants_map_weighted.jpeg', dpi=300, bbox_inches='tight')
     return fig
 
+# REVIEW: There is no actual function-call orchestration below.
+# REVIEW: The refactor needs a dispatcher that maps plot keys to functions and output paths.
 # CALL PLOT FUNCTION
 
 ##############################################################################
 
+# REVIEW: Main wrapper placeholder.
+# REVIEW: This is where Snakemake/argparse handling should go, mirroring filter_by_timeframe.py.
+# REVIEW: Expected behavior: read each filtered CSV, call matching plot function, save to Snakemake output path, write plot_list.txt.
 # MAIN WRAPPER
-
