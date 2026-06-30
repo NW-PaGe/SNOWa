@@ -19,13 +19,13 @@ params:
 Plot key naming pattern
 -----------------------
 stacked_bar_plt  -> results/filtered/stacked_bar_plt_filtered.csv  -> results/plots/stacked_bar_plt.jpeg
-bubble_plt       -> results/filtered/bubble_plt_filtered.csv       -> results/plots/bubble_plt.png
+bubble_plt       -> results/filtered/bubble_plt_filtered.csv       -> results/plots/bubble_plt.jpeg
 """
 
 import argparse
 import os
 import re
-from typing import Callable, Dict, Iterable, List, Mapping, Optional
+from typing import Dict, Iterable, List, Mapping
 
 import geopandas as gpd
 import matplotlib
@@ -49,7 +49,7 @@ from matplotlib.lines import Line2D
 DEFAULT_PLOT_EXTENSIONS = {
     "stacked_bar_plt": "jpeg",
     "qc_pa_plt": "jpeg",
-    "bubble_plt": "png",
+    "bubble_plt": "jpeg",
     "line_plt": "jpeg",
     "heatmap_plt": "jpeg",
     "weekly_maps_plt": "jpeg",
@@ -67,7 +67,7 @@ DEFAULT_PLOT_PARAMS = {
 REQUIRED_COLUMNS = {
     "stacked_bar_plt": ["Week", "variant", "weighted_avg", "hex_code"],
     "qc_pa_plt": ["Week", "variant", "weighted_avg", "hex_code"],
-    "bubble_plt": ["Week", "variant", "weighted_avg", "total_population"],
+    "bubble_plt": ["Week", "variant", "weighted_avg"],
     "line_plt": ["Week", "variant", "weighted_avg", "hex_code"],
     "heatmap_plt": ["Week", "variant", "weighted_avg"],
     "weekly_maps_plt": ["Week", "county", "variant", "weighted_avg", "hex_code"],
@@ -363,8 +363,8 @@ def plot_variant_bubble_chart(weighted_df: pd.DataFrame, threshold: float = 0.01
     """
     Create a static matplotlib bubble chart of SARS-CoV-2 variants by week.
 
-    This intentionally returns a matplotlib Figure instead of an Altair Chart so
-    the pipeline can save bubble_plt.png without requiring vl-convert-python.
+    This returns a matplotlib Figure and is saved as JPEG like the other
+    static matplotlib plots.
     """
     weighted_df = weighted_df[weighted_df["weighted_avg"] > threshold].copy()
 
@@ -887,29 +887,6 @@ def save_matplotlib_figure(fig, output_path: str, dpi: int = 300) -> None:
     plt.close(fig)
 
 
-def save_altair_chart(chart, output_path: str) -> None:
-    """Save an Altair chart."""
-    if chart is None:
-        raise ValueError(f"No Altair chart was created for {output_path}")
-
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    if output_path.endswith(".png"):
-        try:
-            chart.save(output_path, dpi=600, scale_factor=4, engine="vl-convert")
-        except Exception as exc:
-            raise RuntimeError(
-                "Failed to save Altair chart as PNG. Make sure vl-convert-python "
-                "is installed in the container/environment."
-            ) from exc
-    elif output_path.endswith(".html"):
-        chart.save(output_path)
-    else:
-        raise ValueError(
-            f"Unsupported Altair output format for {output_path}. Expected .png or .html."
-        )
-
-
 def write_plot_list(output_paths: Mapping[str, str], plot_list_path: str) -> None:
     """Write a simple tab-delimited list of generated plots."""
     os.makedirs(os.path.dirname(plot_list_path), exist_ok=True)
@@ -970,12 +947,10 @@ def run_all_plots(
 
             plot_obj, plot_kind = run_plot(plot_key, df, config)
 
-            if plot_kind == "matplotlib":
-                save_matplotlib_figure(plot_obj, output_path)
-            elif plot_kind == "altair":
-                save_altair_chart(plot_obj, output_path)
-            else:
+            if plot_kind != "matplotlib":
                 raise ValueError(f"Unknown plot kind for {plot_key}: {plot_kind}")
+
+            save_matplotlib_figure(plot_obj, output_path)
 
         except Exception as exc:
             raise RuntimeError(
