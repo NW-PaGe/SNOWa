@@ -1,97 +1,239 @@
-# REVIEW COPY ONLY
-# Purpose: use this as a code-review / GitHub-diff guide before applying the refactor.
-# The comments are intentionally marked with REVIEW so they are easy to search/remove later.
-# This file is not meant to be the final production script.
+"""
+Create SARS-CoV-2 wastewater surveillance plots from pre-filtered plotting CSVs.
 
-# REVIEW: Imports currently mix plotting libraries, geospatial libraries, and CLI support.
-# REVIEW: In the refactor, keep imports needed by actual functions, and remove unused ones.
-# REVIEW: This original script uses os.path.join later but does not import os, which causes a runtime error for maps.
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-import matplotlib.gridspec as gridspec
-import matplotlib.colors as mcolors
-import geopandas as gpd
-import seaborn as sns
-import altair as alt
+This script is designed to run from Snakemake, but it can also be run directly
+from the command line for debugging.
+
+Expected Snakemake contract
+---------------------------
+input:
+    filtered = list of filtered CSVs, one per plot key
+output:
+    plots = list of final plot files, one per plot key
+    plot_list = results/plots/plot_list.txt
+params:
+    plot_keys = list of plot keys, e.g. ["stacked_bar_plt", "qc_pa_plt", ...]
+    plot_extensions = dict mapping plot key -> file extension
+    config = full config dictionary
+
+Plot key naming pattern
+-----------------------
+stacked_bar_plt  -> results/filtered/stacked_bar_plt_filtered.csv  -> results/plots/stacked_bar_plt.jpeg
+bubble_plt       -> results/filtered/bubble_plt_filtered.csv       -> results/plots/bubble_plt.png
+"""
+
 import argparse
 import os
+import re
+from typing import Callable, Dict, Iterable, List, Mapping, Optional
 
-# REVIEW: argparse is imported but the original script does not yet define a command-line wrapper.
-# REVIEW: The refactor should support both Snakemake and command-line testing, similar to filter_by_timeframe.py.
+import geopandas as gpd
+import matplotlib
+
+# Use a non-interactive backend for Snakemake/container execution.
+matplotlib.use("Agg")
+
+import matplotlib.colors as mcolors
+import matplotlib.gridspec as gridspec
+import matplotlib.patheffects as patheffects
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import yaml
+from matplotlib.lines import Line2D
+
 
 ##############################################################################
+# DEFAULTS
 
-# REVIEW: Section starts with stacked bar plotting.
-# REVIEW: This is a good candidate for a small wrapper: dataframe -> pivot table -> matplotlib Figure.
-# PLOT STACKED BAR PLOT
-# REVIEW: This helper is useful and can stay. It converts long-format filtered data into wide format for plotting.
-def pivot_to_table(df_stacked_bar):
-    """
-    Pivot the weighted proportions into a wide format table:
-    Rows = Week, Columns = Variants
-    """
-    pivot_table = df_stacked_bar.pivot_table(
-        index="Week", columns="variant", values="weighted_avg", fill_value=0
-    )
-    return pivot_table
+DEFAULT_PLOT_EXTENSIONS = {
+    "stacked_bar_plt": "jpeg",
+    "qc_pa_plt": "jpeg",
+    "bubble_plt": "png",
+    "line_plt": "jpeg",
+    "heatmap_plt": "jpeg",
+    "weekly_maps_plt": "jpeg",
+}
 
-# REVIEW: This function currently both creates AND saves the figure.
-# REVIEW: For Snakemake, prefer: create figure here, save in the main wrapper using the requested output path.
-def plot_figure(pivot_table, df_stacked_bar):
-    """
-    Plot a stacked bar chart of variant proportions by week using Freyja hex codes,
-    with a table showing the most recent week's proportions on the side.
+DEFAULT_PLOT_PARAMS = {
+    "stacked_bar_plt": {"table_threshold": 0.001},
+    "qc_pa_plt": {},
+    "bubble_plt": {"threshold": 0.01},
+    "line_plt": {"top_n": 3},
+    "heatmap_plt": {"min_percent": 10},
+    "weekly_maps_plt": {},
+}
 
-    Parameters:
-    - pivot_table: result from pivot_to_table
-    - full_df: original Freyja + lineage-merged DataFrame with 'variant' and 'hex_code'
-    """
-    # Build color mapping from df
-    variant_colors = (
-        df_stacked_bar[["variant", "hex_code"]]
+REQUIRED_COLUMNS = {
+    "stacked_bar_plt": ["Week", "variant", "weighted_avg", "hex_code"],
+    "qc_pa_plt": ["Week", "variant", "weighted_avg", "hex_code"],
+    "bubble_plt": ["Week", "variant", "weighted_avg", "total_population"],
+    "line_plt": ["Week", "variant", "weighted_avg", "hex_code"],
+    "heatmap_plt": ["Week", "variant", "weighted_avg"],
+    "weekly_maps_plt": ["Week", "county", "variant", "weighted_avg", "hex_code"],
+}
+
+
+##############################################################################
+# SHARED HELPERS
+
+
+def week_to_date(week) -> str:
+    """Convert a Week value to YYYY-MM-DD string format for display."""
+    return pd.to_datetime(week).strftime("%Y-%m-%d")
+
+
+def normalize_week_column(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert Week to datetime if the column exists."""
+    df = df.copy()
+    if "Week" in df.columns:
+        df["Week"] = pd.to_datetime(df["Week"])
+    return df
+
+
+def make_variant_color_map(df: pd.DataFrame) -> Dict[str, str]:
+    """Build variant -> hex color mapping from a dataframe."""
+    if "variant" not in df.columns or "hex_code" not in df.columns:
+        return {}
+
+    color_map = (
+        df[["variant", "hex_code"]]
+        .dropna(subset=["variant"])
         .drop_duplicates()
         .set_index("variant")["hex_code"]
         .to_dict()
     )
-    # Ensure color order matches the pivot_table column order
-    colors = [variant_colors.get(v, "#999999") for v in pivot_table.columns]
 
-    # Format dates for x-axis labels
-    def week_to_date(week):
-        """Convert Week to string format YYYY-MM-DD for display."""
-        return pd.to_datetime(week).strftime('%Y-%m-%d')
+    # Replace missing or invalid colors with a neutral fallback.
+    return {
+        variant: color if is_valid_hex_color(color) else "#999999"
+        for variant, color in color_map.items()
+    }
 
+
+def is_valid_hex_color(value) -> bool:
+    """Return True if value is a valid 3- or 6-digit hex color."""
+    return isinstance(value, str) and re.match(r"^#(?:[0-9a-fA-F]{3}){1,2}$", value) is not None
+
+
+def validate_required_columns(df: pd.DataFrame, plot_key: str) -> None:
+    """Raise a helpful error if a plot dataframe is missing required columns."""
+    required = REQUIRED_COLUMNS.get(plot_key, [])
+    missing = [column for column in required if column not in df.columns]
+
+    if missing:
+        raise ValueError(
+            f"Filtered dataframe for '{plot_key}' is missing required columns: {missing}. "
+            f"Available columns: {list(df.columns)}"
+        )
+
+
+def make_empty_figure(title: str, message: str):
+    """Create a placeholder figure when a filtered dataframe has no plottable rows."""
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.axis("off")
+    ax.set_title(title)
+    ax.text(0.5, 0.5, message, ha="center", va="center", fontsize=14)
+    plt.tight_layout()
+    return fig
+
+
+def get_plot_params(config: Mapping, plot_key: str) -> Dict:
+    """
+    Get optional plot-specific parameters from config.
+
+    This is intentionally permissive. If your config does not yet have a
+    plots.params block, defaults are used.
+
+    Optional future config structure:
+        plots:
+          params:
+            bubble_plt:
+              threshold: 0.01
+            heatmap_plt:
+              min_percent: 10
+    """
+    params = dict(DEFAULT_PLOT_PARAMS.get(plot_key, {}))
+    config_params = config.get("plots", {}).get("params", {}).get(plot_key, {})
+
+    if config_params:
+        params.update(config_params)
+
+    return params
+
+
+##############################################################################
+# STACKED BAR PLOT
+
+
+def pivot_to_table(df_stacked_bar: pd.DataFrame) -> pd.DataFrame:
+    """
+    Pivot weighted proportions into wide format.
+
+    Rows = Week
+    Columns = variants
+    Values = weighted_avg
+    """
+    pivot_table = df_stacked_bar.pivot_table(
+        index="Week",
+        columns="variant",
+        values="weighted_avg",
+        fill_value=0,
+        aggfunc="sum",
+    )
+    return pivot_table.sort_index()
+
+
+def plot_stacked_bar(df_stacked_bar: pd.DataFrame, table_threshold: float = 0.001):
+    """
+    Plot a stacked bar chart of variant proportions by week.
+
+    Includes a side table showing the most recent week's proportions above the
+    supplied threshold.
+    """
+    if df_stacked_bar.empty:
+        return make_empty_figure(
+            "Weekly Population-Weighted SARS-CoV-2 Variant Proportions",
+            "No rows available after filtering.",
+        )
+
+    pivot_table = pivot_to_table(df_stacked_bar)
+
+    if pivot_table.empty:
+        return make_empty_figure(
+            "Weekly Population-Weighted SARS-CoV-2 Variant Proportions",
+            "No plottable variant proportions available.",
+        )
+
+    variant_colors = make_variant_color_map(df_stacked_bar)
+    colors = [variant_colors.get(variant, "#999999") for variant in pivot_table.columns]
     date_labels = [week_to_date(week) for week in pivot_table.index]
 
-    # Get most recent week's data and filter out variants below threshold
     most_recent_week = pivot_table.index[-1]
     recent_data = pivot_table.iloc[-1]
+    recent_data_filtered = recent_data[recent_data >= table_threshold].sort_values(ascending=False)
 
-    # Filter to only include variants with proportion >= 0.001 (0.1%)
-    # REVIEW: This table threshold is hardcoded.
-    # REVIEW: Later, consider moving it to config, e.g. plots.params.stacked_bar_plt.table_threshold.
-    threshold = 0.001
-    recent_data_filtered = recent_data[recent_data >= threshold].sort_values(ascending=False)
-
-    # Create figure with GridSpec for custom layout - much larger overall size
     fig = plt.figure(figsize=(32, 14))
     gs = gridspec.GridSpec(1, 2, width_ratios=[4, 1], wspace=0.25)
 
-    # debugging nan color error
-    # REVIEW: Debug print. Useful during development, but remove or replace with logging before final pipeline use.
-    print(pivot_table.columns)
-
-    # Main plot on the left - larger
     ax_main = fig.add_subplot(gs[0])
-    pivot_table.plot(kind="bar", stacked=True, 
-                     ax=ax_main, width=1.00, color=colors,         
-                     edgecolor='white',  # Add white borders between bars
-                     linewidth=0.5)       # Border width)
+    pivot_table.plot(
+        kind="bar",
+        stacked=True,
+        ax=ax_main,
+        width=1.00,
+        color=colors,
+        edgecolor="white",
+        linewidth=0.5,
+    )
+
     ax_main.set_xlabel("Week of Sample Collection Date", fontsize=12)
     ax_main.set_ylabel("Variant Population-Weighted Proportion", fontsize=12)
-    ax_main.set_title("Weekly Population-Weighted SARS-CoV-2 Variant Proportions Across All Sampling Sites, Washington State", 
-                     fontsize=13, pad=20)
+    ax_main.set_title(
+        "Weekly Population-Weighted SARS-CoV-2 Variant Proportions Across All Sampling Sites, Washington State",
+        fontsize=13,
+        pad=20,
+    )
     ax_main.set_xticks(range(len(pivot_table.index)))
     ax_main.set_xticklabels(date_labels, rotation=90, fontsize=12)
     ax_main.legend(
@@ -102,105 +244,91 @@ def plot_figure(pivot_table, df_stacked_bar):
         fontsize=12,
     )
 
-    # Table on the right
     ax_table = fig.add_subplot(gs[1])
-    ax_table.axis('off')
+    ax_table.axis("off")
+    ax_table.text(
+        0.5,
+        0.98,
+        f"Most Recent Week\n{week_to_date(most_recent_week)}",
+        ha="center",
+        va="top",
+        fontsize=12,
+        weight="bold",
+        transform=ax_table.transAxes,
+    )
 
-    # Add title for table
-    ax_table.text(0.5, 0.98, f'Most Recent Week\n{week_to_date(most_recent_week)}', 
-                 ha='center', va='top', fontsize=12, weight='bold',
-                 transform=ax_table.transAxes)
+    table_data = [
+        [variant, f"{proportion * 100:.1f}%"]
+        for variant, proportion in recent_data_filtered.items()
+    ]
 
-
-
-    # Prepare table data (only variants >= 0.1%)
-    table_data = []
-    for variant, proportion in recent_data_filtered.items():
-        percentage = f"{proportion * 100:.1f}%"
-        table_data.append([variant, percentage])
-
-    # Create table
-    if len(table_data) > 0:
+    if table_data:
         table = ax_table.table(
             cellText=table_data,
-            colLabels=['Variant', 'Proportion'],
-            cellLoc='left',
-            loc='upper center',
-            bbox=[0, 0.05, 1, 0.85]
+            colLabels=["Variant", "Proportion"],
+            cellLoc="left",
+            loc="upper center",
+            bbox=[0, 0.05, 1, 0.85],
         )
 
-        # Style the table
         table.auto_set_font_size(False)
         table.set_fontsize(14)
         table.scale(1, 2.2)
 
-        # Color code the variant cells
         for i, (variant, _) in enumerate(table_data):
-            cell = table[(i+1, 0)]  # +1 to skip header row
+            cell = table[(i + 1, 0)]
             cell.set_facecolor(variant_colors.get(variant, "#999999"))
-            cell.set_text_props(weight='bold', color='white')
+            cell.set_text_props(weight="bold", color="white")
 
-        # Style header
         for i in range(2):
-            table[(0, i)].set_facecolor('#4472C4')
-            table[(0, i)].set_text_props(weight='bold', color='white')
-
+            table[(0, i)].set_facecolor("#4472C4")
+            table[(0, i)].set_text_props(weight="bold", color="white")
 
     plt.tight_layout()
-    # REVIEW: Hardcoded output path. This is one of the main refactor targets.
-    # REVIEW: The function should return fig; the wrapper should save to results/plots/stacked_bar_plt.jpeg.
-    plt.savefig("results/proportions_plot.jpeg", dpi=300, bbox_inches='tight')
     return fig
 
 
-
 ##############################################################################
+# PRESENCE / ABSENCE QA PLOT
 
-# REVIEW: Presence/absence plot section.
-# REVIEW: Input should be the already-filtered qc_pa_plt CSV, not raw state-level data.
-# PRESENCE/ABSENCE QA PLOT
 
-def plot_variant_presence_by_week(df):
+def plot_variant_presence_by_week(df: pd.DataFrame):
     """
-    Plot weekly SARS-CoV-2 variant detection timeline using presence/absence,
-    colored by hex code.
-    Parameters:
-    - df: DataFrame with columns ['Week', 'variant', 'hex_code', 'weighted_avg']
+    Plot weekly SARS-CoV-2 variant detection timeline using presence/absence.
+
+    Input dataframe columns:
+        Week, variant, hex_code, weighted_avg
     """
+    if df.empty:
+        return make_empty_figure(
+            "Weekly Detection of SARS-CoV-2 Variants in Wastewater",
+            "No rows available after filtering.",
+        )
 
-    # Step 1: Filter to only rows where variant was actually detected
-    df_detected = df[df['weighted_avg'] > 0].copy()
+    df_detected = df[df["weighted_avg"] > 0].copy()
+    week_labels = sorted(df["Week"].unique())
 
-    # Step 2: Get all unique weeks from the original data (for the full timeline)
-    # REVIEW: Sorting weeks is good. Make sure Week is converted to datetime before plotting for consistent order.
-    week_labels = sorted(df['Week'].unique())
+    if df_detected.empty or not week_labels:
+        return make_empty_figure(
+            "Weekly Detection of SARS-CoV-2 Variants in Wastewater",
+            "No detected variants available after filtering.",
+        )
 
-    # Step 3: Create variant-to-color map
-    variant_colors = (
-        df[['variant', 'hex_code']].drop_duplicates()
-        .set_index('variant')['hex_code'].to_dict()
-    )
+    variant_colors = make_variant_color_map(df)
 
-    # Step 4: Build presence matrix (now only from detected variants)
     presence = (
-        df_detected.groupby(['variant', 'Week'])
+        df_detected.groupby(["variant", "Week"])
         .size()
         .unstack(fill_value=0)
         .reindex(columns=week_labels, fill_value=0)
     )
     presence = (presence > 0).astype(int)
 
-    # Sort variants by first week of appearance
     first_appearance = presence.idxmax(axis=1)
     presence = presence.loc[first_appearance.sort_values(ascending=False).index]
 
-    # Step 5: Format dates for x-axis labels
-    def week_to_date(week):
-        """Convert Week to string format YYYY-MM-DD for display."""
-        return pd.to_datetime(week).strftime('%Y-%m-%d')
     date_labels = [week_to_date(week) for week in week_labels]
 
-    # Step 6: Plot presence as color-coded squares
     fig, ax = plt.subplots(figsize=(16, 18))
     variants = presence.index.tolist()
     weeks_ordered = presence.columns.tolist()
@@ -209,9 +337,8 @@ def plot_variant_presence_by_week(df):
         for col_idx, week in enumerate(weeks_ordered):
             if presence.loc[variant, week] == 1:
                 color = variant_colors.get(variant, "#555555")
-                ax.scatter(col_idx, row_idx, color=color, s=100, marker='s')
+                ax.scatter(col_idx, row_idx, color=color, s=100, marker="s")
 
-    # Step 7: Format plot
     ax.set_xticks(range(len(weeks_ordered)))
     ax.set_xticklabels(date_labels, rotation=90, fontsize=10)
     ax.set_xlim(-0.5, len(weeks_ordered) - 0.5)
@@ -220,43 +347,35 @@ def plot_variant_presence_by_week(df):
     ax.set_ylim(-0.5, len(variants) - 0.5)
     ax.set_xlabel("Week")
     ax.set_ylabel("Variant")
-    ax.set_title("Weekly Detection of SARS-CoV-2 Variants in Wastewater (Colored by Hex Code), Washington State")
+    ax.set_title(
+        "Weekly Detection of SARS-CoV-2 Variants in Wastewater (Colored by Hex Code), Washington State"
+    )
     ax.grid(False)
     plt.tight_layout()
-    # REVIEW: Hardcoded output path. The refactor should save this as results/plots/qc_pa_plt.jpeg.
-    plt.savefig('results/timeline_updated.jpeg', dpi=300)
     return fig
 
 
-
 ##############################################################################
+# BUBBLE PLOT
 
-# REVIEW: Bubble/timeline plot section.
-# REVIEW: The original implementation uses Altair, which is fine in notebooks but can add PNG export dependencies in a container.
-# TIMELINE OF DETECTIONS PLOT
 
-# REVIEW: This function should return a chart/figure only. Saving should happen elsewhere.
-# REVIEW: threshold is a plot parameter and could eventually move to config.
-def plot_variant_bubble_chart(weighted_df, threshold=0.01):
+def plot_variant_bubble_chart(weighted_df: pd.DataFrame, threshold: float = 0.01):
     """
-    Create an interactive bubble plot of SARS-CoV-2 variants by week with uniform circle sizes.
-    All bubbles are the same size, only colored by weighted average proportion using viridis palette.
+    Create a static matplotlib bubble chart of SARS-CoV-2 variants by week.
 
-    Parameters:
-    - weighted_df: DataFrame with columns ['Week', 'variant', 'weighted_avg', 'total_population']
-    - threshold: Minimum weighted_avg proportion to display (default 0.01 = 1%)
+    This intentionally returns a matplotlib Figure instead of an Altair Chart so
+    the pipeline can save bubble_plt.png without requiring vl-convert-python.
     """
+    weighted_df = weighted_df[weighted_df["weighted_avg"] > threshold].copy()
 
-    # Filter out zero proportions and anything below threshold
-    # REVIEW: Threshold uses >, not >=. That is probably fine, but document the intended behavior if 1% exactly matters.
-    weighted_df = weighted_df[weighted_df['weighted_avg'] > threshold].copy()
+    if weighted_df.empty:
+        return make_empty_figure(
+            "Weekly Detection of SARS-CoV-2 Variants in Wastewater, Washington State",
+            f"No variants above {threshold * 100:g}% after filtering.",
+        )
 
-    # Convert weighted_avg to percentage for better display
-    weighted_df['percentage'] = weighted_df['weighted_avg'] * 100
+    weighted_df["percentage"] = weighted_df["weighted_avg"] * 100
 
-    # Create size bins with new specification
-    # REVIEW: The comment says uniform circle sizes, but the code creates size bins for color categories.
-    # REVIEW: Consider renaming size_bin to proportion_bin because the circles are not actually sized by this value.
     def assign_size_bin(pct):
         if pct < 2:
             return 1
@@ -281,112 +400,114 @@ def plot_variant_bubble_chart(weighted_df, threshold=0.01):
         else:
             return 11
 
-    weighted_df['size_bin'] = weighted_df['percentage'].apply(assign_size_bin)
+    weighted_df["size_bin"] = weighted_df["percentage"].apply(assign_size_bin)
 
-    # Define size bin labels
     size_labels = {
-        1: '1<2%',
-        2: '2-10%',
-        3: '11-20%',
-        4: '21-30%',
-        5: '31-40%',
-        6: '41-50%',
-        7: '51-60%',
-        8: '61-70%',
-        9: '71-80%',
-        10: '81-90%',
-        11: '91-100%'
+        1: "1<2%",
+        2: "2-10%",
+        3: "11-20%",
+        4: "21-30%",
+        5: "31-40%",
+        6: "41-50%",
+        7: "51-60%",
+        8: "61-70%",
+        9: "71-80%",
+        10: "81-90%",
+        11: "91-100%",
     }
-    weighted_df['size_label'] = weighted_df['size_bin'].map(size_labels)
 
-    # Viridis-inspired color palette with white for lowest bin (11 colors)
-    # REVIEW: Palette is hardcoded here and reused conceptually in the heatmap.
-    # REVIEW: Consider a shared helper or config section later if you want consistent bins/colors across plots.
     viridis_colors = [
-        '#ffffff',  # white (1-2% - lowest)
-        '#fde724',  # bright yellow
-        '#c2df23',
-        '#86d549',
-        '#52c569',
-        '#2ab07f',
-        '#1e9b8a',
-        '#25858e',
-        '#2d6e8e',
-        '#38588c',
-        '#440154'   # dark purple (91-100% - highest)
+        "#ffffff",
+        "#fde724",
+        "#c2df23",
+        "#86d549",
+        "#52c569",
+        "#2ab07f",
+        "#1e9b8a",
+        "#25858e",
+        "#2d6e8e",
+        "#38588c",
+        "#440154",
     ]
 
-    # Create the bubble chart with uniform size, only color encoding
-    chart = alt.Chart(weighted_df).mark_circle(
-        size=300,  # Uniform size for all circles
-        stroke='#666666', 
-        strokeWidth=1
-    ).encode(
-        x=alt.X('Week:T',  # Changed from 'date:T' to 'Week:T'
-                title='Week',
-                scale=alt.Scale(padding=20),
-                axis=alt.Axis(format='%Y-%m-%d', labelAngle=-90, grid=True)),
-        y=alt.Y('variant:N', 
-                title='Variant',
-                sort=alt.EncodingSortField(field='Week', op='min', order='ascending'),  # Changed from 'date'
-                axis=alt.Axis(grid=True)),
-        color=alt.Color('size_bin:O',
-                        title='Weighted Proportion',
-                        scale=alt.Scale(
-                            domain=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-                            range=viridis_colors
-                        ),
-                        legend=alt.Legend(
-                            labelExpr="datum.label == 1 ? '1<2%' : datum.label == 2 ? '2-10%' : datum.label == 3 ? '11-20%' : datum.label == 4 ? '21-30%' : datum.label == 5 ? '31-40%' : datum.label == 6 ? '41-50%' : datum.label == 7 ? '51-60%' : datum.label == 8 ? '61-70%' : datum.label == 9 ? '71-80%' : datum.label == 10 ? '81-90%' : '91-100%'",
-                            symbolStrokeColor='#666666',
-                            symbolStrokeWidth=1
-                        )),
-        tooltip=[
-            alt.Tooltip('variant:N', title='Variant'),
-            alt.Tooltip('Week:T', title='Week', format='%Y-%m-%d'),  # Changed from 'date:T'
-            alt.Tooltip('percentage:Q', title='Weighted Proportion (%)', format='.2f'),
-            alt.Tooltip('total_population:Q', title='Total Population', format=',')
-        ]
-    ).properties(
-        width=1000,
-        height=600,
-        title={
-            "text": "Weekly Detection of SARS-CoV-2 Variants in Wastewater, Washington State",
-            "offset": 20
-        },
-        padding={"top": 40, "bottom": 20, "left": 20, "right": 20}
-    ).interactive()
+    weeks = sorted(weighted_df["Week"].unique())
+    variants = (
+        weighted_df.groupby("variant")["Week"]
+        .min()
+        .sort_values(ascending=False)
+        .index
+        .tolist()
+    )
 
-    return chart
+    x_positions = {week: idx for idx, week in enumerate(weeks)}
+    y_positions = {variant: idx for idx, variant in enumerate(variants)}
 
-# REVIEW: IMPORTANT: This block runs immediately when the script runs.
-# REVIEW: It references df_bubble, which is undefined in pipeline execution.
-# REVIEW: This should be removed, commented out, or moved under if __name__ == "__main__" for local testing only.
-# Example usage for marimo
-timeline = plot_variant_bubble_chart(
-     #weighted_proportions, 
-     df_bubble,
-#     df_bubble[['variant', 'hex_code']].drop_duplicates(),
-     threshold=0.01  # 1% threshold
-)
-timeline.save('results/bubble_plot.html')
-# REVIEW: Static Altair PNG export depends on vl-convert being available in the container.
-# REVIEW: If that dependency is not guaranteed, either save HTML or make a matplotlib PNG version.
-timeline.save('results/bubble_plot.png', dpi=600, scale_factor=4, engine='vl-convert')
+    weighted_df["x_pos"] = weighted_df["Week"].map(x_positions)
+    weighted_df["y_pos"] = weighted_df["variant"].map(y_positions)
+    weighted_df["color"] = weighted_df["size_bin"].apply(lambda b: viridis_colors[int(b) - 1])
 
+    fig_width = max(12, len(weeks) * 0.45)
+    fig_height = max(8, len(variants) * 0.28)
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
 
+    ax.scatter(
+        weighted_df["x_pos"],
+        weighted_df["y_pos"],
+        s=300,
+        c=weighted_df["color"],
+        edgecolors="#666666",
+        linewidths=1,
+    )
+
+    ax.set_xticks(range(len(weeks)))
+    ax.set_xticklabels([week_to_date(week) for week in weeks], rotation=90, fontsize=10)
+    ax.set_yticks(range(len(variants)))
+    ax.set_yticklabels(variants, fontsize=10)
+    ax.set_xlabel("Week")
+    ax.set_ylabel("Variant")
+    ax.set_title(
+        "Weekly Detection of SARS-CoV-2 Variants in Wastewater, Washington State"
+    )
+    ax.set_xlim(-0.5, len(weeks) - 0.5)
+    ax.set_ylim(-0.5, len(variants) - 0.5)
+    ax.grid(True, axis="both", linewidth=0.5, alpha=0.3)
+
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            label=size_labels[bin_id],
+            markerfacecolor=viridis_colors[bin_id - 1],
+            markeredgecolor="#666666",
+            markersize=10,
+        )
+        for bin_id in range(1, 12)
+    ]
+    ax.legend(
+        handles=legend_elements,
+        title="Weighted Proportion",
+        bbox_to_anchor=(1.02, 1),
+        loc="upper left",
+        borderaxespad=0,
+    )
+
+    plt.tight_layout()
+    return fig
 
 
 ##############################################################################
+# LINE GRAPH
 
-# REVIEW: Line graph section.
-# REVIEW: This should use the filtered line_plt dataframe produced by filter_by_timeframe.py.
-# PLOT LINE GRAPH
-# REVIEW: top_n is currently hardcoded by default. Later it can become a config parameter.
-# REVIEW: This ranks by mean weighted_avg across the filtered window, not necessarily the most recent week. Confirm that this is intended.
-def get_top_variants(weighted_df, top_n=3):
-    top_variants = (
-        weighted_df.groupby('variant')['weighted_avg']
+
+def get_top_variants(weighted_df: pd.DataFrame, top_n: int = 3) -> List[str]:
+    """Return top variants by mean weighted average."""
+    if weighted_df.empty:
+        return []
+
+    return (
+        weighted_df.groupby("variant")["weighted_avg"]
         .mean()
         .sort_values(ascending=False)
         .head(top_n)
@@ -394,358 +515,541 @@ def get_top_variants(weighted_df, top_n=3):
         .tolist()
     )
 
-    return top_variants
 
+def create_line_graph(weighted_df: pd.DataFrame, top_n: int = 3):
+    """Plot top variants over time."""
+    top_variants = get_top_variants(weighted_df, top_n=top_n)
 
-# REVIEW: This function expects top_variants to be calculated beforehand.
-# REVIEW: A small wrapper can combine get_top_variants() + create_line_graph() for the dispatcher.
-def create_line_graph(weighted_df, top_variants):   
-    # Filter to top variants and recent weeks only
-    filtered = weighted_df[
-        (weighted_df['variant'].isin(top_variants)) 
-    ]
+    if not top_variants:
+        return make_empty_figure(
+            "Top Recent SARS-CoV-2 Variants in Wastewater, Washington State",
+            "No rows available after filtering.",
+        )
 
-    # REVIEW: pivot() will fail if there are duplicate Week/variant rows.
-    # REVIEW: If duplicates are possible, use pivot_table(..., aggfunc="sum" or "mean") instead.
-    pivoted = filtered.pivot(index='Week', columns='variant', values='weighted_avg').fillna(0)
-    pivoted.index = pd.to_datetime(pivoted.index).strftime('%Y-%m-%d')
+    filtered = weighted_df[weighted_df["variant"].isin(top_variants)].copy()
+    pivoted = filtered.pivot_table(
+        index="Week",
+        columns="variant",
+        values="weighted_avg",
+        fill_value=0,
+        aggfunc="sum",
+    ).sort_index()
 
-    variant_colors = weighted_df[['variant', 'hex_code']].drop_duplicates().set_index('variant')['hex_code'].to_dict()
+    if pivoted.empty:
+        return make_empty_figure(
+            "Top Recent SARS-CoV-2 Variants in Wastewater, Washington State",
+            "No plottable variant proportions available.",
+        )
+
+    pivoted.index = pd.to_datetime(pivoted.index).strftime("%Y-%m-%d")
+    variant_colors = make_variant_color_map(weighted_df)
 
     fig, ax = plt.subplots(figsize=(12, 8))
+
     for variant in top_variants:
-        ax.plot(pivoted.index, pivoted[variant], label=variant, color=variant_colors.get(variant, 'black'))
+        if variant not in pivoted.columns:
+            continue
+
+        ax.plot(
+            pivoted.index,
+            pivoted[variant],
+            label=variant,
+            color=variant_colors.get(variant, "black"),
+        )
         ax.text(
             pivoted.index[-1],
             pivoted[variant].iloc[-1],
             variant,
             fontsize=11,
-            ha='left',
-            va='center'
+            ha="left",
+            va="center",
         )
 
-    ax.set_title('Top Recent SARS-CoV-2 Variants in Wastewater, Washington State')
-    ax.set_ylabel('Proportion')
-    ax.set_xlabel('Week')
-    ax.tick_params(axis='x', rotation=45)
-    ax.legend(title='Variant', bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.set_title("Top Recent SARS-CoV-2 Variants in Wastewater, Washington State")
+    ax.set_ylabel("Proportion")
+    ax.set_xlabel("Week")
+    ax.tick_params(axis="x", rotation=45)
+    ax.legend(title="Variant", bbox_to_anchor=(1.05, 1), loc="upper left")
     plt.tight_layout()
-    # REVIEW: Hardcoded output path. The refactor should save this as results/plots/line_plt.jpeg.
-    plt.savefig('results/line_graph.jpeg', dpi=300)
     return fig
 
+
 ##############################################################################
+# HEATMAP
 
-# REVIEW: Heatmap section.
-# REVIEW: This should use the filtered heatmap_plt dataframe produced by filter_by_timeframe.py.
-# PLOT HEATMAP
 
-# REVIEW: min_percent is a plot parameter. Later, move it to config if you want reproducible figure settings.
-def create_filtered_heatmap(weighted_df, min_percent=10):
+def create_filtered_heatmap(weighted_df: pd.DataFrame, min_percent: float = 10):
     """
-    Create a heatmap of SARS-CoV-2 variants showing proportions over recent weeks.
+    Create a heatmap of variants over recent weeks.
 
-    Parameters:
-    - weighted_df: DataFrame with columns ['Week', 'variant', 'weighted_avg', 'total_population']
-    - min_percent: Minimum percentage threshold to include a variant (default 10%)
+    min_percent is expressed as a percentage, not a proportion.
     """
+    if weighted_df.empty:
+        return make_empty_figure(
+            "Variants in Wastewater, Washington State",
+            "No rows available after filtering.",
+        )
 
-   # REVIEW: Minor formatting issue: this comment is indented with 3 spaces instead of 4. Not fatal, but clean up during refactor.
-   # Pivot table
-    # REVIEW: Like the line plot, pivot() assumes one row per variant/week. Use pivot_table if duplicates are possible.
-    pivot = weighted_df.pivot(index='variant', columns='Week', values='weighted_avg').fillna(0) * 100
-    # Filter variants by min_percent threshold
+    pivot = (
+        weighted_df.pivot_table(
+            index="variant",
+            columns="Week",
+            values="weighted_avg",
+            fill_value=0,
+            aggfunc="sum",
+        )
+        * 100
+    )
+
     filtered = pivot[pivot.max(axis=1) >= min_percent]
 
-    # format date for plotting
-    def week_to_date(week):
-        """Convert week to string format for plotting"""
-        return pd.to_datetime(week).strftime('%Y-%m-%d')
+    if filtered.empty:
+        return make_empty_figure(
+            f"Variants >= {min_percent:g}% in Any Week, Washington State",
+            f"No variants reached {min_percent:g}% after filtering.",
+        )
 
     filtered.columns = [week_to_date(week) for week in filtered.columns]
-
-    # Reorder columns
     filtered = filtered[sorted(filtered.columns)]
 
-    # Create custom colormap matching bubble plot
-    # Colors from bubble plot: white, yellow, green-cyan gradient, blue, purple
     colors_list = [
-        '#ffffff',  # white (0-2%)
-        '#fde724',  # bright yellow (2-10%)
-        '#c2df23',  # yellow-green (10-20%)
-        '#86d549',  # green (20-30%)
-        '#52c569',  # green (30-40%)
-        '#2ab07f',  # green-cyan (40-50%)
-        '#1e9b8a',  # cyan (50-60%)
-        '#25858e',  # cyan-blue (60-70%)
-        '#2d6e8e',  # blue (70-80%)
-        '#38588c',  # blue-purple (80-90%)
-        '#440154'   # dark purple (90-100%)
+        "#ffffff",
+        "#fde724",
+        "#c2df23",
+        "#86d549",
+        "#52c569",
+        "#2ab07f",
+        "#1e9b8a",
+        "#25858e",
+        "#2d6e8e",
+        "#38588c",
+        "#440154",
     ]
-
-    # Create boundaries for the bins
     boundaries = [0, 2, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-
-    # Create custom colormap
     cmap = mcolors.ListedColormap(colors_list)
     norm = mcolors.BoundaryNorm(boundaries, cmap.N)
 
-    # Plot
-    plt.figure(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(12, 8))
     sns.heatmap(
         filtered,
         annot=True,
         fmt=".2g",
         cmap=cmap,
         norm=norm,
-        cbar_kws={'label': 'Proportion (%)', 'boundaries': boundaries, 'ticks': boundaries},
+        cbar_kws={"label": "Proportion (%)", "boundaries": boundaries, "ticks": boundaries},
         linewidths=0.5,
-        linecolor='lightgray'
+        linecolor="lightgray",
+        ax=ax,
     )
-    plt.title('Variants ≥10% in Any Week (Past 12 Weeks), Washington State')
-    plt.xlabel('Sample Collection Week')
-    plt.ylabel('Variant')
-    # REVIEW: Hardcoded output path. The refactor should save this as results/plots/heatmap_plt.jpeg.
-    # REVIEW: Also consider calling tight_layout before savefig, not after.
-    plt.savefig('results/heatmap.jpeg', dpi=300, bbox_inches='tight')
+    ax.set_title(f"Variants >= {min_percent:g}% in Any Week, Washington State")
+    ax.set_xlabel("Sample Collection Week")
+    ax.set_ylabel("Variant")
     plt.tight_layout()
-    return plt.gcf()
+    return fig
+
 
 ##############################################################################
+# WEEKLY DOMINANT VARIANT MAPS
 
-# REVIEW: Weekly map section.
-# REVIEW: This is the most config-dependent plot because it needs shapefiles and non-sampled county metadata.
-# PLOT WEEKLY DOMINANT VARIANTS
 
-# REVIEW: Function signature is different from the other plots because it needs config.
-# REVIEW: In the dispatcher, this plot should be special-cased or passed config consistently.
-def plot_dominant_variant_maps(config, weighted_df):
+def plot_dominant_variant_maps(config: Mapping, weighted_df: pd.DataFrame):
     """
-    Generates weekly maps of the dominant SARS-CoV-2 variant in each WA county.
-    Shows the actual county-specific percentage of the dominant variant.
-    Counties not enrolled in surveillance are shown in grey.
+    Generate weekly maps of the dominant SARS-CoV-2 variant in each WA county.
 
-    Parameters:
-    -----------
-    config : dict
-        Full config dictionary loaded from config.yaml
-    weighted_df : DataFrame
-        Output from calculate_county_weighted_variant_prevalence()
-        Contains: Week, county, variant, weighted_avg, hex_code
-
-    Config structure:
-        geographic_data:
-            shapefiles_dir: 'defaults/'
-            non_sampled_counties: 'defaults/non_sampled_counties.csv'
+    Requires config['geographic_data']['shapefiles_dir'] and
+    config['geographic_data']['non_sampled_counties'].
     """
+    if weighted_df.empty:
+        return make_empty_figure(
+            "Dominant Variant by County, Washington State",
+            "No rows available after filtering.",
+        )
 
-    # REVIEW: This comment says "x" but the code is really validating geographic_data config.
-    # REVIEW: Update the wording so future readers know this block validates map inputs.
-    # Step 1. Check if x exists in config
+    if "geographic_data" not in config:
+        raise ValueError(
+            "'geographic_data' not found in config. Add geographic_data.shapefiles_dir "
+            "and geographic_data.non_sampled_counties before running weekly_maps_plt."
+        )
 
-    # Check if geographic_data exists in config
-    if 'geographic_data' not in config:
-        raise ValueError("'geographic_data' not found in Config")
+    geographic_data = config["geographic_data"]
 
-    geographic_data = config['geographic_data']
+    if "shapefiles_dir" not in geographic_data:
+        raise ValueError("'shapefiles_dir' not found in config['geographic_data']")
 
-    # Check if shapefiles_dir exists in geographic_data
-    if 'shapefiles_dir' not in geographic_data:
-        raise ValueError("'shapefiles_dir' not found in geographic_data Config")
+    if "non_sampled_counties" not in geographic_data:
+        raise ValueError("'non_sampled_counties' not found in config['geographic_data']")
 
-    # Check if non_sampled_counties exists in geographic_data
-    if 'non_sampled_counties' not in geographic_data:
-        raise ValueError("'non_sampled_counties' not found in geographic_data Config")
+    shapefile_path = os.path.join(geographic_data["shapefiles_dir"], "WA_County_Boundaries.shp")
 
-    # Step 2  Set up shapefile and non_sampled_counties
-    # Build shapefile path
-    # REVIEW: This line requires import os at the top of the script. The original script is missing that import.
-    shapefile_path = os.path.join(geographic_data['shapefiles_dir'], 'WA_County_Boundaries.shp')
-
-    # Read non-sampled counties from CSV
     try:
-        # REVIEW: This CSV is required here. If the file is optional, handle missing file by using an empty list.
-        # REVIEW: The expected column name is non_sampled_county.
-        non_sampled_df = pd.read_csv(geographic_data['non_sampled_counties'])
-        NON_SAMPLED_COUNTIES = non_sampled_df['non_sampled_county'].tolist()
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Non-sampled counties file not found at: {geographic_data['non_sampled_counties']}")
+        non_sampled_df = pd.read_csv(geographic_data["non_sampled_counties"])
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            f"Non-sampled counties file not found at: {geographic_data['non_sampled_counties']}"
+        ) from exc
 
-    # Step 3: Load and normalize shapefile
+    if "non_sampled_county" not in non_sampled_df.columns:
+        raise ValueError(
+            f"Expected column 'non_sampled_county' in {geographic_data['non_sampled_counties']}"
+        )
+
+    non_sampled_counties = non_sampled_df["non_sampled_county"].str.title().tolist()
+
     try:
-        # REVIEW: Shapefiles require companion files, usually .shp, .shx, .dbf, and .prj.
-        # REVIEW: If any are missing, geopandas may fail even if the .shp path exists.
         wa_shape = gpd.read_file(shapefile_path)
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Shapefile not found at: {shapefile_path}")
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"Shapefile not found at: {shapefile_path}") from exc
 
-    wa_shape = wa_shape.rename(columns={"JURISDIC_3": "county"})
-    wa_shape['county'] = wa_shape['county'].str.title()
+    if "JURISDIC_3" not in wa_shape.columns and "county" not in wa_shape.columns:
+        raise ValueError(
+            "County shapefile must contain either 'JURISDIC_3' or 'county' column."
+        )
 
-    # Step 4: Format dates - keep datetime for sorting/display, create formatted version
+    if "JURISDIC_3" in wa_shape.columns:
+        wa_shape = wa_shape.rename(columns={"JURISDIC_3": "county"})
+
+    wa_shape["county"] = wa_shape["county"].str.title()
+
     weighted_df = weighted_df.copy()
-    weighted_df['Week_dt'] = pd.to_datetime(weighted_df['Week'])
-    weighted_df['Week_formatted'] = weighted_df['Week_dt'].dt.strftime('%Y-%m-%d')
+    weighted_df["county"] = weighted_df["county"].str.title()
+    weighted_df["Week_dt"] = pd.to_datetime(weighted_df["Week"])
+    weighted_df["Week_formatted"] = weighted_df["Week_dt"].dt.strftime("%Y-%m-%d")
 
-    # Step 5: Plotting
-    # 5.a Get unique weeks to plot
-    # REVIEW: unique() preserves current dataframe order. Sort explicitly if the weekly map panels should always be chronological.
-    weeks_to_plot = weighted_df['Week_formatted'].unique()
+    weeks_to_plot = sorted(weighted_df["Week_formatted"].unique())
 
     if len(weeks_to_plot) == 0:
-        print("No usable weekly data available.")
-        return
+        return make_empty_figure(
+            "Dominant Variant by County, Washington State",
+            "No usable weekly data available.",
+        )
 
-    # 5.b Set up plots
     n = len(weeks_to_plot)
-    rows = (n + 3) // 4
     cols = 4
-
-    from matplotlib.gridspec import GridSpec
-    import matplotlib.patheffects as patheffects
+    rows = (n + cols - 1) // cols
 
     fig = plt.figure(figsize=(cols * 6, rows * 6 + 2))
-    gs = GridSpec(rows + 1, cols, height_ratios=[1]*rows + [0.2])
+    gs = gridspec.GridSpec(rows + 1, cols, height_ratios=[1] * rows + [0.2])
     axes = [fig.add_subplot(gs[i, j]) for i in range(rows) for j in range(cols)]
 
     plotted_variants = []
 
-    # 5.c iterate through weeks and plot maps
     for i, week in enumerate(weeks_to_plot):
         ax = axes[i]
         print(f"Processing week: {week}")
 
-        week_data = weighted_df[weighted_df['Week_formatted'] == week]
+        week_data = weighted_df[weighted_df["Week_formatted"] == week]
         if week_data.empty:
-            print(f"  [SKIPPED] No data found for week {week}")
+            ax.axis("off")
+            ax.set_title(f"No data for week of {week}")
             continue
 
-        # Find dominant variant per county
-        # REVIEW: This chooses the dominant variant per county by max weighted_avg.
-        # REVIEW: If ties matter, this silently keeps the first max row. That may be acceptable, but document it.
-        dominant = week_data.loc[week_data.groupby('county')['weighted_avg'].idxmax()]
+        dominant = week_data.loc[week_data.groupby("county")["weighted_avg"].idxmax()]
 
-        # Merge with shapefile
         map_df = wa_shape.merge(
-            dominant[['county', 'variant', 'hex_code', 'weighted_avg']], 
-            on='county', 
-            how='left'
+            dominant[["county", "variant", "hex_code", "weighted_avg"]],
+            on="county",
+            how="left",
         )
 
-        # Apply colors: grey=not enrolled, white=no data, color=variant
-        map_df['hex_code'] = map_df.apply(
-            lambda row: '#D3D3D3' if row['county'] in NON_SAMPLED_COUNTIES 
-            else (row['hex_code'] if pd.notna(row['hex_code']) else '#FFFFFF'),
-            axis=1
+        map_df["hex_code"] = map_df.apply(
+            lambda row: "#D3D3D3"
+            if row["county"] in non_sampled_counties
+            else (row["hex_code"] if pd.notna(row["hex_code"]) else "#FFFFFF"),
+            axis=1,
         )
+        map_df["hex_code"] = map_df["hex_code"].astype(str)
 
-        map_df['hex_code'] = map_df['hex_code'].astype(str)
+        bad_rows = map_df[~map_df["hex_code"].apply(is_valid_hex_color)]
+        if not bad_rows.empty:
+            print("Found invalid hex codes:")
+            print(bad_rows[["county", "variant", "hex_code"]])
+            raise ValueError("Stopping: invalid hex codes present.")
 
-        # Collect variants for legend
         variant_data = map_df[
-            (map_df['variant'].notna()) & 
-            (~map_df['county'].isin(NON_SAMPLED_COUNTIES))
-        ][['variant', 'hex_code']].drop_duplicates()
+            (map_df["variant"].notna())
+            & (~map_df["county"].isin(non_sampled_counties))
+        ][["variant", "hex_code"]].drop_duplicates()
 
         if not variant_data.empty:
             plotted_variants.append(variant_data)
 
-        # Validate hex codes
-        bad_rows = map_df[~map_df['hex_code'].str.match(r'^#(?:[0-9a-fA-F]{3}){1,2}$')]
-        if not bad_rows.empty:
-            print("❌ Found invalid hex codes:")
-            print(bad_rows[['county', 'variant', 'hex_code']])
-            raise ValueError("Stopping: invalid hex codes present.")
+        map_df.plot(ax=ax, color=map_df["hex_code"], edgecolor="black")
 
-        # Plot map
-        map_df.plot(ax=ax, color=map_df['hex_code'], edgecolor='black')
-
-        # Add percentage annotations with black outline
         counties_with_data = map_df[
-            (map_df['variant'].notna()) & 
-            (~map_df['county'].isin(NON_SAMPLED_COUNTIES))
+            (map_df["variant"].notna())
+            & (~map_df["county"].isin(non_sampled_counties))
         ]
 
-        for idx, row in counties_with_data.iterrows():
-            # REVIEW: Centroids on geographic CRS can generate warnings or slightly odd label placement.
-            # REVIEW: Fine for now, but projected CRS would be cleaner for production cartography.
+        for _, row in counties_with_data.iterrows():
             centroid = row.geometry.centroid
-            percentage = row['weighted_avg'] * 100
+            percentage = row["weighted_avg"] * 100
 
             ax.annotate(
                 f"{percentage:.0f}%",
                 xy=(centroid.x, centroid.y),
-                ha='center',
-                va='center',
+                ha="center",
+                va="center",
                 fontsize=14,
-                fontweight='bold',
-                color='white',
+                fontweight="bold",
+                color="white",
                 path_effects=[
-                    patheffects.Stroke(linewidth=3, foreground='black'),
-                    patheffects.Normal()
-                ]
+                    patheffects.Stroke(linewidth=3, foreground="black"),
+                    patheffects.Normal(),
+                ],
             )
 
-        # Get the datetime for title
-        title_date = week_data['Week_dt'].iloc[0]
-        ax.set_title(f"Dominant Variant by County, Week of {title_date.strftime('%b %d, %Y')}", fontsize=16)
-        ax.axis('off')
+        title_date = week_data["Week_dt"].iloc[0]
+        ax.set_title(
+            f"Dominant Variant by County, Week of {title_date.strftime('%b %d, %Y')}",
+            fontsize=16,
+        )
+        ax.axis("off")
 
-    # Step 6 Legend
-    #Compile legend variants
-    if plotted_variants:
-        legend_variants = pd.concat(plotted_variants).drop_duplicates().sort_values(by='variant')
-    else:
-        legend_variants = pd.DataFrame(columns=['variant', 'hex_code'])
-
-    # Remove unused axes
-    for ax in axes[len(weeks_to_plot):]:
+    for ax in axes[len(weeks_to_plot) :]:
         fig.delaxes(ax)
 
-    # Create legend
+    if plotted_variants:
+        legend_variants = pd.concat(plotted_variants).drop_duplicates().sort_values(by="variant")
+    else:
+        legend_variants = pd.DataFrame(columns=["variant", "hex_code"])
+
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label=variant, markersize=10, 
-               markerfacecolor=hex_code, markeredgecolor='black', markeredgewidth=1.5)
-        for variant, hex_code in zip(legend_variants['variant'], legend_variants['hex_code'])
-        if isinstance(hex_code, str) and hex_code.startswith('#')
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            label=variant,
+            markersize=10,
+            markerfacecolor=hex_code,
+            markeredgecolor="black",
+            markeredgewidth=1.5,
+        )
+        for variant, hex_code in zip(legend_variants["variant"], legend_variants["hex_code"])
+        if is_valid_hex_color(hex_code)
     ]
 
     legend_elements.append(
-        Line2D([0], [0], marker='o', color='w', label='Not Enrolled', 
-               markersize=10, markerfacecolor='#D3D3D3', markeredgecolor='black', markeredgewidth=1.5)
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            label="Not Enrolled",
+            markersize=10,
+            markerfacecolor="#D3D3D3",
+            markeredgecolor="black",
+            markeredgewidth=1.5,
+        )
     )
     legend_elements.append(
-        Line2D([0], [0], marker='o', color='w', label='No Data', 
-               markersize=10, markerfacecolor='#FFFFFF', markeredgecolor='black', markeredgewidth=1.5)
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            label="No Data",
+            markersize=10,
+            markerfacecolor="#FFFFFF",
+            markeredgecolor="black",
+            markeredgewidth=1.5,
+        )
     )
 
     legend_ax = fig.add_subplot(gs[-1, :])
-    legend_ax.axis('off')
-
-    legend = legend_ax.legend(
+    legend_ax.axis("off")
+    legend_ax.legend(
         handles=legend_elements,
         title="Variants",
         title_fontsize=18,
-        loc='center',
+        loc="center",
         ncol=6,
         fontsize=14,
         markerscale=2,
-        frameon=False
+        frameon=False,
     )
 
-    # Step 7 plotting
     plt.tight_layout()
-    # REVIEW: Hardcoded output path. The refactor should save this as results/plots/weekly_maps_plt.jpeg.
-    plt.savefig('results/dominant_variants_map_weighted.jpeg', dpi=300, bbox_inches='tight')
     return fig
 
-# REVIEW: There is no actual function-call orchestration below.
-# REVIEW: The refactor needs a dispatcher that maps plot keys to functions and output paths.
-# CALL PLOT FUNCTION
 
 ##############################################################################
+# SAVE HELPERS
 
-# REVIEW: Main wrapper placeholder.
-# REVIEW: This is where Snakemake/argparse handling should go, mirroring filter_by_timeframe.py.
-# REVIEW: Expected behavior: read each filtered CSV, call matching plot function, save to Snakemake output path, write plot_list.txt.
+
+def save_matplotlib_figure(fig, output_path: str, dpi: int = 300) -> None:
+    """Save a matplotlib figure and close it."""
+    if fig is None:
+        raise ValueError(f"No matplotlib figure was created for {output_path}")
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+
+
+def save_altair_chart(chart, output_path: str) -> None:
+    """Save an Altair chart."""
+    if chart is None:
+        raise ValueError(f"No Altair chart was created for {output_path}")
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    if output_path.endswith(".png"):
+        try:
+            chart.save(output_path, dpi=600, scale_factor=4, engine="vl-convert")
+        except Exception as exc:
+            raise RuntimeError(
+                "Failed to save Altair chart as PNG. Make sure vl-convert-python "
+                "is installed in the container/environment."
+            ) from exc
+    elif output_path.endswith(".html"):
+        chart.save(output_path)
+    else:
+        raise ValueError(
+            f"Unsupported Altair output format for {output_path}. Expected .png or .html."
+        )
+
+
+def write_plot_list(output_paths: Mapping[str, str], plot_list_path: str) -> None:
+    """Write a simple tab-delimited list of generated plots."""
+    os.makedirs(os.path.dirname(plot_list_path), exist_ok=True)
+
+    with open(plot_list_path, "w") as f:
+        for plot_key, output_path in output_paths.items():
+            f.write(f"{plot_key}\t{output_path}\n")
+
+
+##############################################################################
+# PLOT DISPATCHER
+
+
+def run_plot(plot_key: str, df: pd.DataFrame, config: Mapping):
+    """Call the correct plotting function for one plot key."""
+    params = get_plot_params(config, plot_key)
+
+    if plot_key == "stacked_bar_plt":
+        return plot_stacked_bar(df, **params), "matplotlib"
+    elif plot_key == "qc_pa_plt":
+        return plot_variant_presence_by_week(df), "matplotlib"
+    elif plot_key == "bubble_plt":
+        return plot_variant_bubble_chart(df, **params), "matplotlib"
+    elif plot_key == "line_plt":
+        return create_line_graph(df, **params), "matplotlib"
+    elif plot_key == "heatmap_plt":
+        return create_filtered_heatmap(df, **params), "matplotlib"
+    elif plot_key == "weekly_maps_plt":
+        return plot_dominant_variant_maps(config, df), "matplotlib"
+
+    raise ValueError(f"No plotting function registered for plot key: {plot_key}")
+
+
+def run_all_plots(
+    input_paths: Mapping[str, str],
+    output_paths: Mapping[str, str],
+    plot_keys: Iterable[str],
+    config: Mapping,
+) -> None:
+    """Read filtered CSVs, create plots, and save outputs."""
+    for plot_key in plot_keys:
+        if plot_key not in input_paths:
+            raise ValueError(f"No input path found for plot key: {plot_key}")
+        if plot_key not in output_paths:
+            raise ValueError(f"No output path found for plot key: {plot_key}")
+
+        input_path = input_paths[plot_key]
+        output_path = output_paths[plot_key]
+
+        print(f"Creating {plot_key}", flush=True)
+        print(f"  input:  {input_path}", flush=True)
+        print(f"  output: {output_path}", flush=True)
+
+        try:
+            df = pd.read_csv(input_path)
+            df = normalize_week_column(df)
+            validate_required_columns(df, plot_key)
+
+            plot_obj, plot_kind = run_plot(plot_key, df, config)
+
+            if plot_kind == "matplotlib":
+                save_matplotlib_figure(plot_obj, output_path)
+            elif plot_kind == "altair":
+                save_altair_chart(plot_obj, output_path)
+            else:
+                raise ValueError(f"Unknown plot kind for {plot_key}: {plot_kind}")
+
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed while creating plot '{plot_key}' from '{input_path}' "
+                f"and saving to '{output_path}'."
+            ) from exc
+
+
+##############################################################################
+# INPUT / OUTPUT PATH HELPERS
+
+
+def build_default_input_paths(plot_keys: Iterable[str]) -> Dict[str, str]:
+    """Build default filtered CSV paths for command-line debugging."""
+    return {
+        plot_key: f"results/filtered/{plot_key}_filtered.csv"
+        for plot_key in plot_keys
+    }
+
+
+def build_default_output_paths(
+    plot_keys: Iterable[str],
+    plot_dir: str,
+    plot_extensions: Mapping[str, str],
+) -> Dict[str, str]:
+    """Build default final plot paths from plot keys and extensions."""
+    return {
+        plot_key: os.path.join(plot_dir, f"{plot_key}.{plot_extensions[plot_key]}")
+        for plot_key in plot_keys
+    }
+
+
+def get_snakemake_paths():
+    """Collect paths and config from Snakemake's injected snakemake object."""
+    plot_keys = list(snakemake.params.plot_keys)
+    config = snakemake.params.config
+
+    input_paths = dict(zip(plot_keys, list(snakemake.input.filtered)))
+    output_paths = dict(zip(plot_keys, list(snakemake.output.plots)))
+    plot_list_path = snakemake.output.plot_list
+
+    return plot_keys, input_paths, output_paths, plot_list_path, config
+
+
+def get_cli_paths():
+    """Collect paths and config when running this script outside Snakemake."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", "-c", required=True, help="Path to config.yaml")
+    args = parser.parse_args()
+
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
+
+    plot_keys = list(config["plots"]["filter"].keys())
+    plot_dir = config["plots"].get("plot_dir", "results/plots/")
+    plot_extensions = config["plots"].get("extensions", DEFAULT_PLOT_EXTENSIONS)
+
+    input_paths = build_default_input_paths(plot_keys)
+    output_paths = build_default_output_paths(plot_keys, plot_dir, plot_extensions)
+    plot_list_path = os.path.join(plot_dir, "plot_list.txt")
+
+    return plot_keys, input_paths, output_paths, plot_list_path, config
+
+
+##############################################################################
 # MAIN WRAPPER
+
+
+if __name__ == "__main__":
+    try:
+        snakemake  # noqa: F821
+        plot_keys, input_paths, output_paths, plot_list_path, config = get_snakemake_paths()
+    except NameError:
+        plot_keys, input_paths, output_paths, plot_list_path, config = get_cli_paths()
+
+    run_all_plots(input_paths, output_paths, plot_keys, config)
+    write_plot_list(output_paths, plot_list_path)
