@@ -5,6 +5,7 @@ from glob import glob
 
 rule all:
     input:
+        'results/qc/weekly_county_report.txt',
         'results/full_qc_report.txt',
         expand(
             "results/filtered/{plots}_filtered.csv",
@@ -121,7 +122,16 @@ rule filter_by_timeframe:
     script:
         "python_scripts/filter_by_timeframe.py"
 
-# ADD COUNTY PROPORTIONS QC RULE
+# ADD WEEKLY COUNTY PROPORTIONS REPORT FOR WEEKLY MAPS QC
+rule weekly_county_report:
+    input:
+        county="results/filtered/weekly_maps_plt_filtered.csv"
+    output:
+        report="results/qc/weekly_county_report.txt"
+    shell: 
+        """
+        python3 python_scripts/weekly_county_report.py -i  {input.county} > {output.report}
+        """
 
 rule plots:
     input:
@@ -189,3 +199,5 @@ rule final_qc:
         {input.weighted_props_qc_report} \
         > {output.full_qc_report}
         """
+
+ruleorder:  pre_qc > merge_data > metadata_qc_raw > add_site_and_classifications > variant_lineage_mapping_qc > add_population_weights > add_county_weights > pop_weighted_proportions_qc > filter_by_timeframe > weekly_county_report > plots > report > md_to_pdf > final_qc
