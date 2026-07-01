@@ -16,10 +16,10 @@ add_sites_and_classes:
   sites: "defaults/sample_site-counties.csv"
   classifications: "defaults/ww_lineage_classifications.csv"
 
-# geographic data files for maps (PLACEHOLDER FOR NOW)
-#geographic_data:
-#  shapefiles_dir: 'defaults/'
-#  non_sampled_counties: 'defaults/non_sampled_counties.csv'
+# geographic data files for maps
+geographic_data:
+  shapefiles_dir: "defaults/"
+  non_sampled_counties: "defaults/non_sampled_counties.csv"
 
 plots:
   plot_dir: "results/plots/"
