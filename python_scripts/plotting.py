@@ -514,7 +514,7 @@ def plot_variant_bubble_chart(weighted_df: pd.DataFrame, threshold: float = 0.01
     return fig
 
 
-##############################################################################
+###############################################################################
 # LINE GRAPH
 
 
@@ -534,7 +534,10 @@ def get_top_variants(weighted_df: pd.DataFrame, top_n: int = 3) -> List[str]:
 
 
 def create_line_graph(weighted_df: pd.DataFrame, top_n: int = 3):
-    """Plot top variants over time."""
+    """Plot top variants over time with dashed lines for missing weeks."""
+    # Ensure weeks are properly formatted datetimes for indexing and interpolation
+    weighted_df = normalize_week_column(weighted_df)
+    
     top_variants = get_top_variants(weighted_df, top_n=top_n)
 
     if not top_variants:
@@ -544,11 +547,12 @@ def create_line_graph(weighted_df: pd.DataFrame, top_n: int = 3):
         )
 
     filtered = weighted_df[weighted_df["variant"].isin(top_variants)].copy()
+    
+    # We do NOT use fill_value=0 here so missing weeks stay as NaNs
     pivoted = filtered.pivot_table(
         index="Week",
         columns="variant",
         values="weighted_avg",
-        fill_value=0,
         aggfunc="sum",
     ).sort_index()
 
@@ -561,30 +565,54 @@ def create_line_graph(weighted_df: pd.DataFrame, top_n: int = 3):
             "No plottable variant proportions available.",
         )
 
-    pivoted.index = [week_to_date(week) for week in pivoted.index]
     variant_colors = make_variant_color_map(weighted_df)
 
     fig, ax = plt.subplots(figsize=(12, 8))
 
+    # We must calculate interpolation while the index is STILL a DatetimeIndex
     for variant in top_variants:
         if variant not in pivoted.columns:
             continue
 
         series = pivoted[variant]
+        color = variant_colors.get(variant, "black")
+
+        # Linearly interpolate missing weeks strictly inside the known data range
+        interpolated_series = series.interpolate(method="linear", limit_area="inside")
+
+        # Convert the index to string labels ONLY for plotting purposes
+        plot_dates = [week_to_date(w) for w in pivoted.index]
+
+        # Layer 1: The underlying dashed line bridging gaps
         ax.plot(
-            pivoted.index,
-            series,
-            label=variant,
-            color=variant_colors.get(variant, "black"),
+            plot_dates,
+            interpolated_series,
+            linestyle="--",
+            color=color,
+            alpha=0.5,
+            linewidth=1.5,
+            label=None  # Explicitly skip automatic legend entry
         )
 
-        # Place the label at the last observed value, not at a missing week.
+        # Layer 2: The solid real-data line (breaks automatically on NaNs)
+        ax.plot(
+            plot_dates,
+            series,
+            linestyle="-",
+            color=color,
+            linewidth=2.5,
+            label=variant
+        )
+
+        # Place the text label at the last observed real value, not a gap
         last_valid_week = series.last_valid_index()
         if last_valid_week is not None:
+            # Match the position in the string-formatted date list
+            idx_pos = pivoted.index.get_loc(last_valid_week)
             ax.text(
-                last_valid_week,
+                plot_dates[idx_pos],
                 series.loc[last_valid_week],
-                variant,
+                f" {variant}",
                 fontsize=11,
                 ha="left",
                 va="center",
@@ -594,9 +622,26 @@ def create_line_graph(weighted_df: pd.DataFrame, top_n: int = 3):
     ax.set_ylabel("Proportion")
     ax.set_xlabel("Week")
     ax.tick_params(axis="x", rotation=45)
-    ax.legend(title="Variant", bbox_to_anchor=(1.05, 1), loc="upper left")
+    
+    # Custom Legend Handling: Dynamically builds entries for variants,
+    # and adds a structural entry explaining what the dashed line represents.
+    handles, labels = ax.get_legend_handles_labels()
+    
+    # Append an entry explaining the dashed segments
+    handles.append(Line2D([0], [0], color="#666666", linestyle="--", alpha=0.6))
+    labels.append("Incomplete Sampling (Interpolated)")
+
+    ax.legend(
+        handles=handles,
+        labels=labels,
+        title="Variant Status",
+        bbox_to_anchor=(1.05, 1),
+        loc="upper left"
+    )
+    
     plt.tight_layout()
     return fig
+
 
 
 ##############################################################################
