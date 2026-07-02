@@ -1,16 +1,40 @@
 configfile: os.path.join(workflow.basedir, "defaults/config.yaml")
 containerized: config["containerized"]
+
 from datetime import date
 from glob import glob
 
+# Plotting
+PLOT_KEYS = list(config["plots"]["filter"].keys())
+
+PLOT_EXTENSIONS = {
+    "stacked_bar_plt": "jpeg",
+    "qc_pa_plt": "jpeg",
+    "bubble_plt": "jpeg",
+    "line_plt": "jpeg",
+    "heatmap_plt": "jpeg",
+    "weekly_maps_plt": "jpeg",
+}
+
+FILTERED_PLOT_CSVS = expand(
+    "results/filtered/{plot_key}_filtered.csv",
+    plot_key=PLOT_KEYS
+)
+
+PLOT_FILES = expand(
+    config["plots"]["plot_dir"] + "{plot_key}.{ext}",
+    zip,
+    plot_key=PLOT_KEYS,
+    ext=[PLOT_EXTENSIONS[plot_key] for plot_key in PLOT_KEYS]
+)
+
 rule all:
     input:
-        'results/qc/weekly_county_report.txt',
-        'results/full_qc_report.txt',
-        expand(
-            "results/filtered/{plots}_filtered.csv",
-            plots=['stacked_bar_plt', 'qc_pa_plt', 'bubble_plt', 'line_plt', 'heatmap_plt', 'weekly_maps_plt']
-            )
+        "results/qc/weekly_county_report.txt",
+        "results/full_qc_report.txt",
+        FILTERED_PLOT_CSVS,
+        PLOT_FILES,
+        "results/plots/plot_list.txt"
 
 rule pre_qc:
     output: 
@@ -113,12 +137,10 @@ rule filter_by_timeframe:
     input:
         state="results/state_weighted_proportions.csv",
         county="results/county_weighted_proportions.csv"
-    params: config=config["plots"]["filter"]
+    params:
+        config=config["plots"]["filter"]
     output:
-        expand(
-            "results/filtered/{plots}_filtered.csv",
-            plots=['stacked_bar_plt', 'qc_pa_plt', 'bubble_plt', 'line_plt', 'heatmap_plt', 'weekly_maps_plt']
-            )
+        FILTERED_PLOT_CSVS
     script:
         "python_scripts/filter_by_timeframe.py"
 
@@ -135,25 +157,17 @@ rule weekly_county_report:
 
 rule plots:
     input:
-        weighted_props="results/state_weighted_proportions.csv",
-        ww_data="results/ww_data.csv"
+        filtered=FILTERED_PLOT_CSVS
     output:
-        plot_list='results/plots/plot_list.txt'
+        plots=PLOT_FILES,
+        plot_list="results/plots/plot_list.txt"
     params:
-        plot_dir=config['plots']['plot_dir']
-    shell:
-        """
-        mkdir -p {params.plot_dir}
-        python3 python_scripts/plots.py \
-        --dataset {input.ww_data} \
-        --proportions {input.weighted_props} \
-        --barplot "{params.plot_dir}barplot.jpeg" \
-        --timeline "{params.plot_dir}timeline.jpeg" \
-        --top3 "{params.plot_dir}top3.jpeg" \
-        --heatmap "{params.plot_dir}heatmap.jpeg" \
-        --n-weeks-map "{params.plot_dir}n_weeks_map"
-        touch {params.plot_dir}plot_list.txt && ls -1 {params.plot_dir} > {params.plot_dir}plot_list.txt
-        """
+        plot_dir=config["plots"]["plot_dir"],
+        plot_keys=PLOT_KEYS,
+        plot_extensions=PLOT_EXTENSIONS,
+        config=config
+    script:
+        "python_scripts/plotting.py"
 
 rule report:
     input:
