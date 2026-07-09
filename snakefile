@@ -34,7 +34,8 @@ rule all:
         "results/full_qc_report.txt",
         FILTERED_PLOT_CSVS,
         PLOT_FILES,
-        "results/plots/plot_list.txt"
+        "results/plots/plot_list.txt",
+        "results/ww_report.pdf"
 
 rule pre_qc:
     output: 
@@ -171,11 +172,11 @@ rule plots:
 
 rule report:
     input:
-        template="defaults/sc2-ww-template.md",
+        template="defaults/report.md",
         plot_list='results/plots/plot_list.txt',
     output:
-        md="ww_report.md",
-        html="ww_report.html",
+        md="results/ww_report.md",
+        html="results/ww_report.html",
     shell:
         """
         python3 python_scripts/report.py --template {input.template} \
@@ -187,9 +188,9 @@ rule md_to_pdf:
     container:
         "docker://pandoc/latex:latest-ubuntu"
     input:
-        md="ww_report.md"
+        md="results/ww_report.md"
     output:
-        pdf="ww_report.pdf"
+        pdf="results/ww_report.pdf"
     shell:
         """
         pandoc {input} \
