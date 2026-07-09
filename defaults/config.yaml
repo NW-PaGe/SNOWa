@@ -90,9 +90,10 @@ plots:
 
 report:
   format: "pdf"
-  date: "July 2026"
+  date: "July 9, 2026"
   report_generator: "Steph M Lunn, MPH, MS"
-  report_generator_email: "stephanie.lunn@doh.wa.gov"
-  team: "Molecular Epidemiology Program"
-  team_email: "wgs-epi@doh.wa.gov"
-  data_period: "July 2025 - July 2026"
+  report_generator_team: "Molecular Epidemiology Program"
+  interpretations_by: "Steph M Lunn, MPH, MS"
+  interpretations_by_team: "Molecular Epidemiology Program"
+  data_period: "June 2026 - Current"
+  
