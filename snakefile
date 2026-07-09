@@ -31,7 +31,7 @@ PLOT_FILES = expand(
 rule all:
     input:
         "results/qc/weekly_county_report.txt",
-        "results/full_qc_report.txt",
+        "results/full_qc_report.html",
         FILTERED_PLOT_CSVS,
         PLOT_FILES,
         "results/plots/plot_list.txt",
@@ -203,16 +203,19 @@ rule final_qc:
         pre_qc_report='results/qc/pre_qc_report.txt',
         metadata_qc_report='results/qc/metadata_qc_raw.txt',
         lineage_mapping_qc_report='results/qc/lineage_mapping_qc_report.txt',
-        weighted_props_qc_report='results/qc/weighted_proportions_qc_report.txt'
+        weighted_props_qc_report='results/qc/weighted_proportions_qc_report.txt',
+        variant_qc_fig='results/plots/qc_pa_plt.jpeg'
     output:
-        full_qc_report='results/full_qc_report.txt'
+        full_qc_report='results/full_qc_report.html'
     shell:
         """
-        cat {input.pre_qc_report} \
-        {input.metadata_qc_report} \
-        {input.lineage_mapping_qc_report} \
-        {input.weighted_props_qc_report} \
-        > {output.full_qc_report}
+        python3 python_scripts/compile_qc_report.py \
+            --pre-qc {input.pre_qc_report} \
+            --metadata {input.metadata_qc_report} \
+            --lineage-mapping {input.lineage_mapping_qc_report} \
+            --weighted-props {input.weighted_props_qc_report} \
+            --variant-qc-fig {input.variant_qc_fig} \
+            --output-html {output.full_qc_report}
         """
 
 ruleorder:  pre_qc > merge_data > metadata_qc_raw > add_site_and_classifications > variant_lineage_mapping_qc > add_population_weights > add_county_weights > pop_weighted_proportions_qc > filter_by_timeframe > weekly_county_report > plots > report > md_to_pdf > final_qc
