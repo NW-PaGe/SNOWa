@@ -140,7 +140,8 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
                     })
 
                     for site, row in site_breakdown.iterrows():
-                        sample_ids = row['Sample_ID']
+                        sample_ids_num = row['Sample_ID']
+                        sample_ids = [str(x) for x in sample_ids_num]
                         site_count = len(sample_ids)
                         print(f"         • {site}: {site_count} samples (Sample_IDs: {sample_ids})")
                     print()  # Add blank line between dates
