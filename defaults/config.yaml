@@ -90,9 +90,9 @@ plots:
 
 report:
   format: "pdf"
-  date: "October 2, 2025"
-  author: "Dan Hartman, MS, PhD"
-  author_email: "daniel.hartman@doh.wa.gov"
+  date: "July 2026"
+  report_generator: "Steph M Lunn, MPH, MS"
+  report_generator_email: "stephanie.lunn@doh.wa.gov"
   team: "Molecular Epidemiology Program"
   team_email: "wgs-epi@doh.wa.gov"
-  data_period: "January 2024 - September 2025"
+  data_period: "July 2025 - July 2026"
