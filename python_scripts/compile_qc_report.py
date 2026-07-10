@@ -16,6 +16,10 @@ def compile_qc_report(pre_qc, metadata_qc, lineage_mapping_qc, weighted_props_qc
         <title>QC Report - {now}</title>
     </head>
     <body>
+        <h1>QC Report</h1>
+        <p>Generated on: {now}</p>
+        <hr>
+        
         <pre>{pre_qc}</pre>
         <pre>{metadata_qc}</pre>
         <pre>{lineage_mapping_qc}</pre>
