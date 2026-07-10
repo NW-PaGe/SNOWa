@@ -1,10 +1,14 @@
 import html
 import argparse
+import base64
 from datetime import datetime, date
 
 def compile_qc_report(pre_qc, metadata_qc, lineage_mapping_qc, weighted_props_qc, output_html, variant_qc_fig):
     now = datetime.now()
     #convert fig to base64 string
+    with open(variant_qc_fig, "rb") as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+    
     html_report = f"""<!DOCTYPE html>
     <html>
     <head>
@@ -16,7 +20,7 @@ def compile_qc_report(pre_qc, metadata_qc, lineage_mapping_qc, weighted_props_qc
         <pre>{metadata_qc}</pre>
         <pre>{lineage_mapping_qc}</pre>
         <pre>{weighted_props_qc}</pre>
-        <img src="plots/qc_pa_plt.jpeg", alt="QC plot depicting the detection of variants in wastewater through time" class="center-image" width=900>
+        <img src="data:image/jpeg;base64,{encoded_string}" alt="QC plot depicting the detection of variants in wastewater through time" class="center-image" width=900>
         
     </body>
     </html>"""
