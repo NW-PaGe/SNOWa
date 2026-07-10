@@ -406,30 +406,23 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
         print("3. If data looks good, move files to runs/ folder")
         print("4. If issues found, fix source data and re-run QC")
 
-        move_files = input(f"\nMove {len(new_files)} file(s) to runs/ folder? (y/n): ").lower().strip()
+    if quality_issues:
+        print("\n❌ PRE-QC FAILED")
+        print("Data needs review due to failed QC checks.")
+        print("Review and correct the data, then rerun the pipeline.")
+        print("The new file will remain in new_runs/ and will not be included in the analysis.")
 
-        if move_files == 'y':
-            print(f"\n🚀 Moving files to runs/ folder...")
+    else:
+        print("\n✅ PRE-QC PASSED")
+        print("Moving approved file(s) to runs/ for inclusion in the analysis.")
 
-            # Create runs folder if it doesn't exist
-            os.makedirs('runs', exist_ok=True)
+        os.makedirs("runs", exist_ok=True)
 
-            moved_count = 0
-            for file in new_files:
-                try:
-                    filename = os.path.basename(file)
-                    destination = os.path.join('runs', filename)
-                    shutil.move(file, destination)
-                    print(f"   ✅ Moved: {filename}")
-                    moved_count += 1
-                except Exception as e:
-                    print(f"   ❌ Failed to move {filename}: {e}")
-
-            print(f"\n🎉 Successfully moved {moved_count}/{len(new_files)} files to runs/ folder")
-            print("   Ready for main data processing!")
-        else:
-            print(f"\n📋 Files remain in new_runs/ folder for further review")
-            print("   Re-run this QC script after addressing any issues")
+        for file in new_files:
+            filename = os.path.basename(file)
+            destination = os.path.join("runs", filename)
+            shutil.move(file, destination)
+            print(f"   ✅ Moved: {filename}")
 
 
 # Run the Pre-QC validation
