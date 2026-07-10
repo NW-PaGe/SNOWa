@@ -231,7 +231,7 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
 
             # Try to load variant reference file
             try:
-                variant_ref_df = pd.read_csv('defaults/variant_reference.csv')
+                variant_ref_df = pd.read_csv('results/qc/variant_reference.csv')
                 print(f"   📋 Variant reference file loaded: {len(variant_ref_df)} known variants")
 
                 # Get known variants from reference
@@ -298,7 +298,7 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
                         output_filename = f'results/new_variants_detected_{timestamp}.csv'
                         new_variants_df.to_csv(output_filename, index=False)
                         print(f"\n   💾 New variants report saved to: {output_filename}")
-                        print(f"   ⚠️  ACTION REQUIRED: Review new variants and update variant_reference.csv if valid")
+                        print(f"   ⚠️  ACTION REQUIRED: Review new variants; results/qc/variant_reference.csv will automatically update")
 
                     else:
                         print("   ✅ No new variants detected - all variants in new data are in reference file")
