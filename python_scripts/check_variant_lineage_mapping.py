@@ -129,7 +129,7 @@ def check_variant_lineage_mapping(full_df):
     }
 
 # create variant reference file to check for new variants when new run data comes in
-def create_variant_reference(full_df, output_path='data/variant_reference.csv'):
+def create_variant_reference(full_df, output_path='results/qc/variant_reference.csv'):
     """
     Create a reference CSV file with unique Variant_name and variant mappings.
 
