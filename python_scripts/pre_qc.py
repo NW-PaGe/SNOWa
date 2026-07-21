@@ -140,7 +140,8 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
                     })
 
                     for site, row in site_breakdown.iterrows():
-                        sample_ids = row['Sample_ID']
+                        sample_ids_num = row['Sample_ID']
+                        sample_ids = [str(x) for x in sample_ids_num]
                         site_count = len(sample_ids)
                         print(f"         • {site}: {site_count} samples (Sample_IDs: {sample_ids})")
                     print()  # Add blank line between dates
@@ -230,7 +231,7 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
 
             # Try to load variant reference file
             try:
-                variant_ref_df = pd.read_csv('defaults/variant_reference.csv')
+                variant_ref_df = pd.read_csv('results/qc/variant_reference.csv')
                 print(f"   📋 Variant reference file loaded: {len(variant_ref_df)} known variants")
 
                 # Get known variants from reference
@@ -297,7 +298,7 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
                         output_filename = f'results/new_variants_detected_{timestamp}.csv'
                         new_variants_df.to_csv(output_filename, index=False)
                         print(f"\n   💾 New variants report saved to: {output_filename}")
-                        print(f"   ⚠️  ACTION REQUIRED: Review new variants and update variant_reference.csv if valid")
+                        print(f"   ⚠️  ACTION REQUIRED: Review new variants; results/qc/variant_reference.csv will automatically update")
 
                     else:
                         print("   ✅ No new variants detected - all variants in new data are in reference file")
@@ -405,30 +406,23 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
         print("3. If data looks good, move files to runs/ folder")
         print("4. If issues found, fix source data and re-run QC")
 
-        move_files = input(f"\nMove {len(new_files)} file(s) to runs/ folder? (y/n): ").lower().strip()
+    if quality_issues:
+        print("\n❌ PRE-QC FAILED")
+        print("Data needs review due to failed QC checks.")
+        print("Review and correct the data, then rerun the pipeline.")
+        print("The new file will remain in new_runs/ and will not be included in the analysis.")
 
-        if move_files == 'y':
-            print(f"\n🚀 Moving files to runs/ folder...")
+    else:
+        print("\n✅ PRE-QC PASSED")
+        print("Moving approved file(s) to runs/ for inclusion in the analysis.")
 
-            # Create runs folder if it doesn't exist
-            os.makedirs('runs', exist_ok=True)
+        os.makedirs("runs", exist_ok=True)
 
-            moved_count = 0
-            for file in new_files:
-                try:
-                    filename = os.path.basename(file)
-                    destination = os.path.join('runs', filename)
-                    shutil.move(file, destination)
-                    print(f"   ✅ Moved: {filename}")
-                    moved_count += 1
-                except Exception as e:
-                    print(f"   ❌ Failed to move {filename}: {e}")
-
-            print(f"\n🎉 Successfully moved {moved_count}/{len(new_files)} files to runs/ folder")
-            print("   Ready for main data processing!")
-        else:
-            print(f"\n📋 Files remain in new_runs/ folder for further review")
-            print("   Re-run this QC script after addressing any issues")
+        for file in new_files:
+            filename = os.path.basename(file)
+            destination = os.path.join("runs", filename)
+            shutil.move(file, destination)
+            print(f"   ✅ Moved: {filename}")
 
 
 # Run the Pre-QC validation
