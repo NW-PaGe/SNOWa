@@ -16,6 +16,8 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
     new_runs_path = os.path.join(directory, "*.tsv")
     new_files = glob.glob(new_runs_path)
 
+    quality_issues = []
+    
     print("=== PRE-QC VALIDATION - NEW RUNS ===")
     print("Workflow: new_runs/ → QC validation → runs/ (after approval)")
     print("="*60)
@@ -335,8 +337,6 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
 
         # === 6. FLAG DATA QUALITY ISSUES ===
         print("\n6️⃣ DATA QUALITY ISSUES SUMMARY:")
-
-        quality_issues = []
 
         # Missing data issues
         if missing_data_issues:
