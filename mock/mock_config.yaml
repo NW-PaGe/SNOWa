@@ -1,0 +1,95 @@
+# containers
+containerized: "docker://lunnwa/snowa:latest"
+
+pre_qc:
+  copy_runs: "y"
+  directory: "new_runs/" 
+
+merge_data:
+  directory: "mock/"
+
+add_sites_and_classes:
+  sites: "mock/mock_site_metadata.csv"
+  classifications: "defaults/ww_lineage_classifications.csv"
+
+# geographic data files for maps
+geographic_data:
+  shapefiles_dir: "defaults/"
+  non_sampled_counties: "defaults/non_sampled_counties.csv"
+
+plots:
+  plot_dir: "results/plots/"
+    #######################################
+  # SET TIMEFRAME FOR EACH OF THE PLOTS
+
+  # Default timeframe for stacked bar plot and bubble plot (1 year)
+  # Default timeframe for line graph, heatmap, and weekly maps (12 weeks)
+
+  # You can set date parameters by recency or date_range (choose one or other)
+
+  # SPECIFYING RECENCY PARAMETER
+  # plot_name:
+  #   timeframe:
+  #     recency:
+  #       value: 1
+  #       unit: year # Valid units are: day, week, month, year (singular or plural)
+
+  # SPECIFYING DATE PARAMETER
+  # plot_name:
+  #   timeframe:
+  #     date_range:
+  #       start_date: 2024-01-01
+  #       end_date:   2024-06-30
+  filter:
+  # date parameters for weekly variant proportions (stacked bar plot)
+    stacked_bar_plt:
+      timeframe:
+        recency:
+          value: 1
+          unit: year
+
+    # date parameters for QC timeline of detections (QC presence/absence plot)
+    qc_pa_plt:
+      timeframe:
+        recency:
+          value: 1
+          unit: year
+
+    # date parameters for timeline of detections (bubble plot)
+    bubble_plt:
+      timeframe:
+        recency:
+          value: 1
+          unit: year
+
+    # date parameters for top 3 variants (line plt)
+    line_plt:
+      timeframe:
+        recency:
+          value: 12
+          unit: weeks
+
+    # date parameters for heatmap of prevalent variants (heatmap)
+    heatmap_plt:
+      timeframe:
+        recency:
+          value: 12
+          unit: weeks
+
+    # date parameters for map of dominant variants (weekly maps)
+    weekly_maps_plt:
+      timeframe:
+        recency:
+          value: 12
+          unit: weeks
+
+
+report:
+  format: "pdf"
+  date: "July 22, 2026"
+  report_generator: "Steph M Lunn, MPH, MS"
+  report_generator_team: "Molecular Epidemiology Program"
+  interpretations_by: "Steph M Lunn, MPH, MS"
+  interpretations_by_team: "Molecular Epidemiology Program"
+  data_period: "June 2026 - Current"
+  
