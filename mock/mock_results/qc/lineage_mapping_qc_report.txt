@@ -1,0 +1,52 @@
+=== VARIANT LINEAGE MAPPING QC CHECK ===
+
+All Variant_name entries have corresponding parent lineage assignments
+
+All Variant_name entries have corresponding hex_code assignments
+
+INFO: 28 Variant_name entries classified as Recombinant:
+   - XDD: 22 samples
+   - XDK: 17 samples
+   - XDQ: 10 samples
+   - XDK.1: 8 samples
+   - XDR: 8 samples
+   - XDF: 4 samples
+   - XDN: 4 samples
+   - XDH: 4 samples
+   - XCV: 4 samples
+   - XDA: 4 samples
+   - XCY: 4 samples
+   - XDJ: 4 samples
+   - XDD.1: 3 samples
+   - XDD.1.1: 3 samples
+   - XCP: 2 samples
+   - XDQ.1: 2 samples
+   - XDK.5: 2 samples
+   - XDK.1.2: 2 samples
+   - XDK.3: 2 samples
+   - XDV: 2 samples
+   - XDD.2: 2 samples
+   - XDA.1: 2 samples
+   - XAJ: 1 samples
+   - XCM: 1 samples
+   - XDK.1.1: 1 samples
+   - XBL.1: 1 samples
+   - XDL: 1 samples
+   - XDR.1: 1 samples
+
+No Ancestral variants detected
+
+=== MAPPING SUMMARY ===
+Total unique Variant_name entries: 459
+Successfully mapped to parent lineages: 459
+Successfully mapped to hex codes: 459
+Parent lineage mapping rate: 100.0%
+Hex code mapping rate: 100.0%
+Recombinant variants detected: 121
+Ancestral variants detected: 0
+
+✓ Created results/qc/variant_reference.csv
+  Total unique mappings: 460
+  Unique Variant_names: 459
+  Unique CDC variants: 56
+✓ Backup saved to: results/qc/variant_reference_backup_20260811_202750.csv

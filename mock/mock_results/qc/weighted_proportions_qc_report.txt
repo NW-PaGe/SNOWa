@@ -1,0 +1,43 @@
+=== POST-WEIGHTING QC REPORT ===
+
+1. POPULATION WEIGHTING VALIDATION:
+   Weekly proportion sums - Range: 1.000 to 1.079
+   ✅ All weekly sums are within reasonable range (0.8-1.2)
+   Population coverage variation: 42.8% CV
+   Population range: 147,916 to 12,990,514
+   ⚠️  High population variation between weeks (>20% CV)
+
+2. ANOMALOUS VALUES CHECK:
+   Weighted proportion range: 0.0000 to 0.8869
+   ⚠️  5 variant-week combinations >80%:
+      - JN.1 in 2024-01-16: 0.815
+      - JN.1 in 2024-01-30: 0.887
+      - JN.1 in 2024-02-06: 0.809
+      - JN.1 in 2024-02-13: 0.816
+      - JN.1 in 2024-04-16: 0.845
+   ✅ No negative weighted proportions
+
+3. TEMPORAL CONSISTENCY CHECK:
+   ✅ No sporadic high-proportion variants detected
+   ⚠️  3 variants show high week-to-week variability:
+      - JN.1: mean=0.452, std=0.287
+      - JN.1.7: mean=0.082, std=0.105
+      - KP.3: mean=0.089, std=0.134
+
+4. REGIONAL DISTRIBUTION CHECK:
+   County coverage per week: 1 to 14 counties
+   Total counties with data: 14
+   County-level proportion range: 0.0000 to 0.9969
+   ⚠️  48 county-variant-week combinations >90%
+
+5. DATA COMPLETENESS:
+   ✅ All weeks have >2 variants detected
+
+6. SUMMARY STATISTICS:
+   Total weeks analyzed: 26
+   Total variants detected: 56
+   Total variant-week combinations: 1456
+   Average variants per week: 56.0
+   Average population coverage: 7,996,382
+
+=== END QC REPORT ===
