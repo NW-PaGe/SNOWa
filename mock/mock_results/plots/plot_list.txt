@@ -1,0 +1,6 @@
+stacked_bar_plt	results/plots/stacked_bar_plt.jpeg
+qc_pa_plt	results/plots/qc_pa_plt.jpeg
+bubble_plt	results/plots/bubble_plt.jpeg
+line_plt	results/plots/line_plt.jpeg
+heatmap_plt	results/plots/heatmap_plt.jpeg
+weekly_maps_plt	results/plots/weekly_maps_plt.jpeg

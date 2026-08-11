@@ -1,0 +1,9 @@
+=== PRE-QC VALIDATION - NEW RUNS ===
+Workflow: new_runs/ → QC validation → runs/ (after approval)
+============================================================
+📂 No TSV files found in new_runs/ folder - skipping Pre-QC validation
+   To run Pre-QC, place new sequencing files in the new_runs/ directory
+   Continuing with notebook execution...
+
+✅ PRE-QC PASSED
+Moving approved file(s) to runs/ for inclusion in the analysis.
