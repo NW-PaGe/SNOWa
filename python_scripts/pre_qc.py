@@ -233,7 +233,7 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
 
             # Try to load variant reference file
             try:
-                variant_ref_df = pd.read_csv('results/qc/variant_reference.csv')
+                variant_ref_df = pd.read_csv('defaults/variant_reference.csv')
                 print(f"   📋 Variant reference file loaded: {len(variant_ref_df)} known variants")
 
                 # Get known variants from reference
@@ -296,11 +296,11 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
 
                         # Save new variants to CSV file
                         new_variants_df = pd.DataFrame(new_variant_details)
-                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                        output_filename = f'results/new_variants_detected_{timestamp}.csv'
+                        timestamp = datetime.now().strftime('%Y%m%d')
+                        output_filename = f'results/qc/new_variants_detected_{timestamp}.csv'
                         new_variants_df.to_csv(output_filename, index=False)
                         print(f"\n   💾 New variants report saved to: {output_filename}")
-                        print(f"   ⚠️  ACTION REQUIRED: Review new variants; results/qc/variant_reference.csv will automatically update")
+                        print(f"   ⚠️  ACTION REQUIRED: Review new variants; defaults/variant_reference.csv will automatically update")
 
                     else:
                         print("   ✅ No new variants detected - all variants in new data are in reference file")
@@ -319,7 +319,7 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
                         print(f"      • {variant}: {count} occurrences")
 
             except FileNotFoundError:
-                print("   ⚠️ Variant reference file 'variant_reference.csv' not found")
+                print("   ⚠️ Variant reference file 'defaults/variant_reference.csv' not found")
                 print("   📋 Unable to check for new variants - showing all variants in new data:")
                 variant_counts = new_run_df['Variant_name'].value_counts()
                 for variant, count in variant_counts.head(20).items():  # Show top 20
