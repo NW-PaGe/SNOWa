@@ -128,51 +128,393 @@ def check_variant_lineage_mapping(full_df):
         'hex_mapped_variant_names': hex_mapped_variant_names
     }
 
-# create variant reference file to check for new variants when new run data comes in
-def create_variant_reference(full_df, output_path='results/qc/variant_reference.csv'):
+# create/update variant reference file to check for new variants when new run data comes in
+def create_variant_reference(full_df, output_path='defaults/variant_reference.csv'):
     """
-    Create a reference CSV file with unique Variant_name and variant mappings.
+    Create or update a cumulative variant reference file.
+
+    Existing historical Variant_name entries are preserved.
+    Current classifications override older classifications for the same Variant_name.
+    Reclassifications and newly observed Variant_name entries are reported and saved.
 
     Parameters:
     -----------
     full_df : pandas DataFrame
-        Your full_df containing 'Variant_name' and 'variant' columns
+        DataFrame containing 'Variant_name' and 'variant' columns.
+
     output_path : str
-        Where to save the file (default: 'variant_reference.csv')
+        Path to the current variant reference file.
 
     Returns:
     --------
     pandas DataFrame
-        The reference dataframe that was saved
+        Updated variant reference dataframe.
     """
-    # Extract unique Variant_name and variant pairs
-    variant_ref = full_df[['Variant_name', 'variant']].drop_duplicates()
 
-    # Sort by Variant_name for easy reference
-    variant_ref = variant_ref.sort_values('Variant_name').reset_index(drop=True)
+    date_stamp = datetime.now().strftime('%Y%m%d')
 
-    # Remove any rows where either value is null
-    variant_ref = variant_ref.dropna()
+    print("\n=== VARIANT REFERENCE UPDATE ===")
 
-    # Save to CSV
+    # --------------------------------------------------
+    # 1. BUILD CURRENT MAPPINGS
+    # --------------------------------------------------
+    current_ref = (
+        full_df[['Variant_name', 'variant']]
+        .dropna()
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+
+    print(f"Current dataset mappings: {len(current_ref)}")
+    print(
+        f"Current unique Variant_names: "
+        f"{current_ref['Variant_name'].nunique()}"
+    )
+
+    # --------------------------------------------------
+    # 2. CHECK CURRENT DATA FOR MULTIPLE CLASSIFICATIONS
+    # --------------------------------------------------
+    current_counts = (
+        current_ref.groupby('Variant_name')['variant']
+        .nunique()
+    )
+
+    current_duplicates = current_counts[current_counts > 1]
+
+    if len(current_duplicates) > 0:
+        print(
+            f"\nWARNING: {len(current_duplicates)} Variant_name entries "
+            "have multiple classifications in the current data:"
+        )
+
+        for variant_name in current_duplicates.index:
+            mappings = current_ref.loc[
+                current_ref['Variant_name'] == variant_name,
+                'variant'
+            ].tolist()
+
+            print(
+                f"   - {variant_name}: "
+                f"{' | '.join(map(str, mappings))}"
+            )
+
+        print(
+            "\nNOTE: Current classifications will take priority during "
+            "the reference update."
+        )
+
+    else:
+        print(
+            "\n✓ Current data contains one classification per Variant_name"
+        )
+
+    # --------------------------------------------------
+    # 3. IF AN EXISTING REFERENCE EXISTS, BACK IT UP
+    # --------------------------------------------------
+    if os.path.exists(output_path):
+
+        existing_df = pd.read_csv(output_path)
+
+        existing_df = (
+            existing_df[['Variant_name', 'variant']]
+            .dropna()
+            .drop_duplicates()
+            .reset_index(drop=True)
+        )
+
+        print(
+            f"\nExisting reference mappings: {len(existing_df)}"
+        )
+        print(
+            f"Existing unique Variant_names: "
+            f"{existing_df['Variant_name'].nunique()}"
+        )
+
+        backup_path = (
+            f"results/qc/variant_reference_backup_{date_stamp}.csv"
+        )
+
+        existing_df.to_csv(backup_path, index=False)
+
+        print(f"✓ Backup saved to: {backup_path}")
+
+        # --------------------------------------------------
+        # 4. CHECK EXISTING REFERENCE FOR DUPLICATE MAPPINGS
+        # --------------------------------------------------
+        existing_counts = (
+            existing_df.groupby('Variant_name')['variant']
+            .nunique()
+        )
+
+        existing_duplicates = existing_counts[existing_counts > 1]
+
+        if len(existing_duplicates) > 0:
+
+            print(
+                f"\nWARNING: {len(existing_duplicates)} Variant_name "
+                "entries have multiple classifications in the "
+                "existing reference:"
+            )
+
+            for variant_name in existing_duplicates.index:
+                mappings = existing_df.loc[
+                    existing_df['Variant_name'] == variant_name,
+                    'variant'
+                ].tolist()
+
+                print(
+                    f"   - {variant_name}: "
+                    f"{' | '.join(map(str, mappings))}"
+                )
+
+        else:
+            print(
+                "\n✓ Existing reference contains one classification "
+                "per Variant_name"
+            )
+
+        # --------------------------------------------------
+        # 5. COMPARE OLD VS CURRENT CLASSIFICATIONS
+        # --------------------------------------------------
+
+        # Reduce current mappings to one row per Variant_name.
+        # The current classification will be treated as authoritative.
+        current_unique = (
+            current_ref
+            .drop_duplicates(subset=['Variant_name'], keep='last')
+            .reset_index(drop=True)
+        )
+
+        # For comparison, reduce existing reference to one row per Variant_name.
+        existing_unique = (
+            existing_df
+            .drop_duplicates(subset=['Variant_name'], keep='last')
+            .reset_index(drop=True)
+        )
+
+        comparison = existing_unique.merge(
+            current_unique,
+            on='Variant_name',
+            how='outer',
+            suffixes=('_old', '_new'),
+            indicator=True
+        )
+
+        # Newly observed Variant_names
+        new_variants = comparison[
+            comparison['_merge'] == 'right_only'
+        ].copy()
+
+        # Existing Variant_names whose classification changed
+        reclassified = comparison[
+            (comparison['_merge'] == 'both') &
+            (comparison['variant_old'] != comparison['variant_new'])
+        ].copy()
+
+        # Unchanged mappings
+        unchanged = comparison[
+            (comparison['_merge'] == 'both') &
+            (comparison['variant_old'] == comparison['variant_new'])
+        ].copy()
+
+        print("\n=== REFERENCE COMPARISON ===")
+        print(f"New Variant_names: {len(new_variants)}")
+        print(f"Reclassified Variant_names: {len(reclassified)}")
+        print(f"Unchanged Variant_names: {len(unchanged)}")
+
+        # --------------------------------------------------
+        # 6. REPORT NEW VARIANTS
+        # --------------------------------------------------
+        if len(new_variants) > 0:
+
+            print("\nNEW VARIANT_NAMES:")
+
+            for _, row in new_variants.iterrows():
+                print(
+                    f"   - {row['Variant_name']} "
+                    f"→ {row['variant_new']}"
+                )
+
+            new_variants_output = new_variants[
+                ['Variant_name', 'variant_new']
+            ].rename(
+                columns={'variant_new': 'variant'}
+            )
+
+            new_variants_path = (
+                f"results/qc/new_variant_mappings_{date_stamp}.csv"
+            )
+
+            new_variants_output.to_csv(
+                new_variants_path,
+                index=False
+            )
+
+            print(
+                f"✓ New variant mappings saved to: "
+                f"{new_variants_path}"
+            )
+
+        else:
+            print("\n✓ No new Variant_name mappings detected")
+
+        # --------------------------------------------------
+        # 7. REPORT RECLASSIFICATIONS
+        # --------------------------------------------------
+        if len(reclassified) > 0:
+
+            print("\nRECLASSIFICATIONS DETECTED:")
+
+            for _, row in reclassified.iterrows():
+                print(
+                    f"   - {row['Variant_name']}: "
+                    f"{row['variant_old']} "
+                    f"→ {row['variant_new']} "
+                    f"(using {row['variant_new']})"
+                )
+
+            reclassification_output = reclassified[
+                [
+                    'Variant_name',
+                    'variant_old',
+                    'variant_new'
+                ]
+            ].rename(
+                columns={
+                    'variant_old': 'old_variant',
+                    'variant_new': 'new_variant'
+                }
+            )
+
+            reclassification_output['updated_variant'] = (
+                reclassification_output['new_variant']
+            )
+
+            reclassification_path = (
+                f"results/qc/"
+                f"variant_reclassifications_{date_stamp}.csv"
+            )
+
+            reclassification_output.to_csv(
+                reclassification_path,
+                index=False
+            )
+
+            print(
+                f"✓ Reclassification report saved to: "
+                f"{reclassification_path}"
+            )
+
+        else:
+            print("\n✓ No lineage reclassifications detected")
+
+        # --------------------------------------------------
+        # 8. UPDATE REFERENCE
+        #
+        # Preserve historical Variant_names that are not in
+        # current data, but current classifications override
+        # historical classifications when Variant_name matches.
+        # --------------------------------------------------
+
+        historical_only = existing_unique[
+            ~existing_unique['Variant_name'].isin(
+                current_unique['Variant_name']
+            )
+        ]
+
+        variant_ref = pd.concat(
+            [
+                historical_only,
+                current_unique
+            ],
+            ignore_index=True
+        )
+
+    else:
+        # --------------------------------------------------
+        # NO EXISTING REFERENCE
+        # --------------------------------------------------
+        print(
+            f"\nNo existing reference found at {output_path}"
+        )
+        print(
+            "Creating a new reference from the current dataset."
+        )
+
+        variant_ref = (
+            current_ref
+            .drop_duplicates(
+                subset=['Variant_name'],
+                keep='last'
+            )
+            .reset_index(drop=True)
+        )
+
+    # --------------------------------------------------
+    # 9. FINAL VALIDATION
+    # --------------------------------------------------
+    variant_ref = (
+        variant_ref
+        .dropna()
+        .sort_values('Variant_name')
+        .reset_index(drop=True)
+    )
+
+    final_duplicates = (
+        variant_ref['Variant_name']
+        .duplicated()
+        .sum()
+    )
+
+    print("\n=== FINAL REFERENCE VALIDATION ===")
+    print(f"Total mappings: {len(variant_ref)}")
+    print(
+        f"Unique Variant_names: "
+        f"{variant_ref['Variant_name'].nunique()}"
+    )
+    print(
+        f"Unique parent variants: "
+        f"{variant_ref['variant'].nunique()}"
+    )
+    print(
+        f"Duplicate Variant_name entries remaining: "
+        f"{final_duplicates}"
+    )
+
+    if final_duplicates == 0:
+        print(
+            "✓ Final reference contains one classification "
+            "per Variant_name"
+        )
+    else:
+        print(
+            "WARNING: Duplicate Variant_name entries remain "
+            "in the final reference"
+        )
+
+    # --------------------------------------------------
+    # 10. SAVE UPDATED REFERENCE
+    # --------------------------------------------------
     variant_ref.to_csv(output_path, index=False)
 
-    print(f"\n✓ Created {output_path}")
+    print(f"\n✓ Updated reference saved to: {output_path}")
+
+    return variant_ref
+
+    # Sort by Variant_name for easy reference
+    variant_ref = (
+        variant_ref
+        .sort_values('Variant_name')
+        .reset_index(drop=True)
+    )
+
+    # Save updated cumulative reference
+    variant_ref.to_csv(output_path, index=False)
+
+    print(f"\n✓ Updated {output_path}")
     print(f"  Total unique mappings: {len(variant_ref)}")
     print(f"  Unique Variant_names: {variant_ref['Variant_name'].nunique()}")
     print(f"  Unique CDC variants: {variant_ref['variant'].nunique()}")
-
-
-    # Check if file already exists
-    # Create backup with timestamp
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_path = output_path.replace('.csv', f'_backup_{timestamp}.csv')
-
-    # Copy existing file to backup
-    existing_df = pd.read_csv(output_path)
-    existing_df.to_csv(backup_path, index=False)
-    print(f"✓ Backup saved to: {backup_path}")
-
 
     return variant_ref
 

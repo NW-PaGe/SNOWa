@@ -93,11 +93,15 @@ rule variant_lineage_mapping_qc:
     input:
         data="results/ww_data.csv"
     output:
-        reference="results/qc/variant_reference.csv",
         qc="results/qc/lineage_mapping_qc_report.txt"
+    params:
+        reference="defaults/variant_reference.csv"
     shell:
         """
-        python3 python_scripts/check_variant_lineage_mapping.py -i {input.data} -r {output.reference} > {output.qc}
+        python3 python_scripts/check_variant_lineage_mapping.py \
+            -i {input.data} \
+            -r {params.reference} \
+            > {output.qc}
         """
 
 rule add_population_weights:
