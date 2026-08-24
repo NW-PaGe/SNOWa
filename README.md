@@ -36,7 +36,7 @@ SNOWa is intended to make routine processing and reporting reproducible. Success
 
 ### Workflow Summary
 
-![SNOWa workflow overview](images/snowa_workflow.png)
+![SNOWa workflow overview](images/snowa_workflow.svg)
 
 ![SNOWa Snakemake DAG](images/snowa_dag.svg)
 
