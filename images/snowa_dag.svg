@@ -1,0 +1,593 @@
+<svg xmlns="http://www.w3.org/2000/svg" baseProfile="full" height="100%" version="1.1" viewBox="25.0,5.0,475.0,280.0" width="100%"><defs><style>
+.packet-layer, .pkt, .highlight-layer { pointer-events: none; }
+.pkt-core { fill: black; stroke: white; stroke-width: 0.8; }
+.pkt-glow { fill: black; opacity: 0.15; }
+#play-pause-btn, #reset-packets-btn { cursor: pointer; }
+#play-pause-btn:hover #btn-bg, #reset-packets-btn:hover #reset-btn-bg { opacity: 0.88; }
+#play-pause-btn:focus, #reset-packets-btn:focus { outline: none; }
+#play-pause-btn:focus #btn-bg, #reset-packets-btn:focus #reset-btn-bg { stroke: white; stroke-width: 1.5; }
+#reset-packets-btn text { pointer-events: none; user-select: none; }
+.dag-node { cursor: pointer; }
+.hl-edge { transition: opacity 0.12s ease; }
+.hl-ring { transition: opacity 0.12s ease; }
+.dag-node-circle { transition: opacity 0.12s ease; }
+.dag-orig-edge { transition: opacity 0.12s ease; }
+#rule-info-panel { pointer-events: auto; }
+#rule-info-panel-bg { fill: #111; opacity: 0.94; stroke: #666; stroke-width: 0.8; }
+#rule-info-panel-title { fill: white; font-family: sans-serif; font-weight: bold; }
+#rule-info-panel-body { fill: #eeeeee; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+#rule-info-panel-close { fill: white; font-family: sans-serif; cursor: pointer; }
+</style></defs><g><line stroke="lightgrey" stroke-dasharray="2" x1="150.0" x2="149.0" y1="15.0" y2="15.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="130.0" x2="149.0" y1="35.0" y2="35.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="150.0" x2="149.0" y1="55.0" y2="55.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="110.0" x2="149.0" y1="75.0" y2="75.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="90.0" x2="149.0" y1="95.0" y2="95.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="70.0" x2="149.0" y1="115.0" y2="115.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="110.0" x2="149.0" y1="135.0" y2="135.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="50.0" x2="149.0" y1="155.0" y2="155.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="70.0" x2="149.0" y1="175.0" y2="175.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="90.0" x2="149.0" y1="195.0" y2="195.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="50.0" x2="149.0" y1="215.0" y2="215.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="130.0" x2="149.0" y1="235.0" y2="235.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="50.0" x2="49.0" y1="255.0" y2="255.0" /><line stroke="lightgrey" stroke-dasharray="2" x1="50.0" x2="49.0" y1="275.0" y2="275.0" /></g><g><line stroke="#c65353" stroke-width="2.0" x1="135.0" x2="135.0" y1="15.0" y2="55.0" /><line stroke="#53c6c6" stroke-width="2.0" x1="95.0" x2="95.0" y1="75.0" y2="135.0" /><line stroke="#c653c6" stroke-width="2.0" x1="55.0" x2="55.0" y1="115.0" y2="175.0" /><line stroke="#5353c6" stroke-width="2.0" x1="75.0" x2="75.0" y1="95.0" y2="160.0" /><line stroke="#d98c8c" stroke-width="2.0" x1="35.0" x2="35.0" y1="155.0" y2="215.0" /><line stroke="#d9d98c" stroke-width="2.0" x1="55.0" x2="55.0" y1="175.0" y2="220.0" /><line stroke="#c65353" stroke-width="2.0" x1="95.0" x2="95.0" y1="135.0" y2="220.0" /><line stroke="#c6c653" stroke-width="2.0" x1="115.0" x2="115.0" y1="35.0" y2="235.0" /><line stroke="#53c653" stroke-width="2.0" x1="135.0" x2="135.0" y1="55.0" y2="220.0" /><line stroke="#8cd9d9" stroke-width="2.0" x1="35.0" x2="35.0" y1="215.0" y2="255.0" /><line stroke="#d98cd9" stroke-width="2.0" x1="35.0" x2="35.0" y1="255.0" y2="275.0" /></g><g><line stroke="white" stroke-width="6.0" x1="95.0" x2="120.0" y1="75.0" y2="75.0" /><line stroke="white" stroke-width="6.0" x1="75.0" x2="80.0" y1="95.0" y2="95.0" /><line stroke="white" stroke-width="6.0" x1="55.0" x2="80.0" y1="115.0" y2="115.0" /><line stroke="white" stroke-width="6.0" x1="35.0" x2="60.0" y1="155.0" y2="155.0" /><line stroke="white" stroke-width="6.0" x1="55.0" x2="60.0" y1="175.0" y2="175.0" /><line stroke="white" stroke-width="6.0" x1="50.0" x2="75.0" y1="195.0" y2="195.0" /><line stroke="white" stroke-width="6.0" x1="50.0" x2="115.0" y1="235.0" y2="235.0" /><line stroke="white" stroke-width="6.0" x1="115.0" x2="120.0" y1="235.0" y2="235.0" /></g><g><path d="M 135.0,60.0 a15.0,15.0 0 0,1 -15.0,15.0" fill="none" stroke="#53c653" stroke-width="2.0" /><line stroke="#53c653" stroke-width="2.0" x1="95.0" x2="120.0" y1="75.0" y2="75.0" /><path d="M 95.0,80.0 a15.0,15.0 0 0,1 -15.0,15.0" fill="none" stroke="#53c6c6" stroke-width="2.0" /><line stroke="#53c6c6" stroke-width="2.0" x1="75.0" x2="80.0" y1="95.0" y2="95.0" /><path d="M 95.0,100.0 a15.0,15.0 0 0,1 -15.0,15.0" fill="none" stroke="#53c6c6" stroke-width="2.0" /><line stroke="#53c6c6" stroke-width="2.0" x1="55.0" x2="80.0" y1="115.0" y2="115.0" /><path d="M 55.0,140.0 a15.0,15.0 0 0,1 -15.0,15.0" fill="none" stroke="#c653c6" stroke-width="2.0" /><path d="M 75.0,140.0 a15.0,15.0 0 0,1 -15.0,15.0" fill="none" stroke="#5353c6" stroke-width="2.0" /><line stroke="#5353c6" stroke-width="2.0" x1="35.0" x2="60.0" y1="155.0" y2="155.0" /><path d="M 75.0,160.0 a15.0,15.0 0 0,1 -15.0,15.0" fill="none" stroke="#5353c6" stroke-width="2.0" /><line stroke="#5353c6" stroke-width="2.0" x1="55.0" x2="60.0" y1="175.0" y2="175.0" /><path d="M 35.0,180.0 a15.0,15.0 0 0,0 15.0,15.0" fill="none" stroke="#d98c8c" stroke-width="2.0" /><line stroke="#d98c8c" stroke-width="2.0" x1="50.0" x2="75.0" y1="195.0" y2="195.0" /><path d="M 35.0,220.0 a15.0,15.0 0 0,0 15.0,15.0" fill="none" stroke="#8cd9d9" stroke-width="2.0" /><path d="M 55.0,220.0 a15.0,15.0 0 0,0 15.0,15.0" fill="none" stroke="#d9d98c" stroke-width="2.0" /><path d="M 95.0,220.0 a15.0,15.0 0 0,0 15.0,15.0" fill="none" stroke="#c65353" stroke-width="2.0" /><line stroke="#8cd9d9" stroke-width="2.0" x1="50.0" x2="115.0" y1="235.0" y2="235.0" /><path d="M 135.0,220.0 a15.0,15.0 0 0,1 -15.0,15.0" fill="none" stroke="#53c653" stroke-width="2.0" /><line stroke="#53c653" stroke-width="2.0" x1="115.0" x2="120.0" y1="235.0" y2="235.0" /></g><g><circle cx="135.0" cy="15.0" fill="#c65353" id="Nmerge_data" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="155.0" y="15.0">merge_data</text><circle cx="115.0" cy="35.0" fill="#c6c653" id="Npre_qc" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="155.0" y="35.0">pre_qc</text><circle cx="135.0" cy="55.0" fill="#53c653" id="Nmetadata_qc_raw" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="155.0" y="55.0">metadata_qc_raw</text><circle cx="95.0" cy="75.0" fill="#53c6c6" id="Nadd_site_and_classifications" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="155.0" y="75.0">add_site_and_classifications</text><circle cx="75.0" cy="95.0" fill="#5353c6" id="Nadd_population_weights" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="155.0" y="95.0">add_population_weights</text><circle cx="55.0" cy="115.0" fill="#c653c6" id="Nadd_county_weights" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="155.0" y="115.0">add_county_weights</text><circle cx="95.0" cy="135.0" fill="#c65353" id="Nvariant_lineage_mapping_qc" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="155.0" y="135.0">variant_lineage_mapping_qc</text><circle cx="35.0" cy="155.0" fill="#d98c8c" id="Nfilter_by_timeframe" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="155.0" y="155.0">filter_by_timeframe</text><circle cx="55.0" cy="175.0" fill="#d9d98c" id="Npop_weighted_proportions_qc" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="155.0" y="175.0">pop_weighted_proportions_qc</text><circle cx="75.0" cy="195.0" fill="#8cd98c" id="Nweekly_county_report" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="155.0" y="195.0">weekly_county_report</text><circle cx="35.0" cy="215.0" fill="#8cd9d9" id="Nplots" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="155.0" y="215.0">plots</text><circle cx="115.0" cy="235.0" fill="#8c8cd9" id="Nfinal_qc" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="155.0" y="235.0">final_qc</text><circle cx="35.0" cy="255.0" fill="#d98cd9" id="Nreport" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="55.0" y="255.0">report</text><circle cx="35.0" cy="275.0" fill="#d98c8c" id="Nmd_to_pdf" r="6.0" stroke="white" stroke-width="2.0" /><text dominant-baseline="middle" fill="currentColor" font-family="sans-serif" font-size="inherit" x="55.0" y="275.0">md_to_pdf</text></g><g id="packet-animation-layer" class="packet-layer"><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 35.0,155.0 L 35.0,180.0 A 15.0,15.0 0 0 0 50.0,195.0 L 75.0,195.0" begin="7.36s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.122603;1" /><animate attributeName="opacity" begin="7.36s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.122603;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 35.0,155.0 L 35.0,215.0" begin="7.36s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.1;1" /><animate attributeName="opacity" begin="7.36s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.1;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 75.0,95.0 L 75.0,140.0 A 15.0,15.0 0 0 1 60.0,155.0 L 35.0,155.0" begin="4.24s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.155937;1" /><animate attributeName="opacity" begin="4.24s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.155937;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 75.0,95.0 L 75.0,160.0 A 15.0,15.0 0 0 1 60.0,175.0 L 55.0,175.0" begin="4.24s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.155937;1" /><animate attributeName="opacity" begin="4.24s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.155937;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 95.0,75.0 L 95.0,80.0 A 15.0,15.0 0 0 1 80.0,95.0 L 75.0,95.0" begin="3.12s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.055937;1" /><animate attributeName="opacity" begin="3.12s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.055937;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 95.0,75.0 L 95.0,100.0 A 15.0,15.0 0 0 1 80.0,115.0 L 55.0,115.0" begin="3.12s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.122603;1" /><animate attributeName="opacity" begin="3.12s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.122603;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 95.0,75.0 L 95.0,135.0" begin="3.12s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.1;1" /><animate attributeName="opacity" begin="3.12s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.1;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 135.0,55.0 L 135.0,60.0 A 15.0,15.0 0 0 1 120.0,75.0 L 95.0,75.0" begin="1.33s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.08927;1" /><animate attributeName="opacity" begin="1.33s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.08927;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 135.0,55.0 L 135.0,220.0 A 15.0,15.0 0 0 1 120.0,235.0 L 115.0,235.0" begin="1.33s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.322603;1" /><animate attributeName="opacity" begin="1.33s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.322603;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 135.0,15.0 L 135.0,55.0" begin="0s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.066667;1" /><animate attributeName="opacity" begin="0s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.066667;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 55.0,115.0 L 55.0,140.0 A 15.0,15.0 0 0 1 40.0,155.0 L 35.0,155.0" begin="5.57s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.08927;1" /><animate attributeName="opacity" begin="5.57s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.08927;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 55.0,115.0 L 55.0,175.0" begin="5.57s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.1;1" /><animate attributeName="opacity" begin="5.57s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.1;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 115.0,35.0 L 115.0,235.0" begin="0s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.333333;1" /><animate attributeName="opacity" begin="0s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.333333;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 95.0,135.0 L 95.0,220.0 A 15.0,15.0 0 0 0 110.0,235.0 L 115.0,235.0" begin="5.12s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.18927;1" /><animate attributeName="opacity" begin="5.12s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.18927;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 55.0,175.0 L 55.0,220.0 A 15.0,15.0 0 0 0 70.0,235.0 L 115.0,235.0" begin="7.36s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.18927;1" /><animate attributeName="opacity" begin="7.36s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.18927;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 55.0,175.0 L 55.0,220.0 A 15.0,15.0 0 0 0 70.0,235.0 L 115.0,235.0" begin="7.57s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.18927;1" /><animate attributeName="opacity" begin="7.57s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.18927;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 35.0,215.0 L 35.0,220.0 A 15.0,15.0 0 0 0 50.0,235.0 L 115.0,235.0" begin="9.36s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.155937;1" /><animate attributeName="opacity" begin="9.36s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.155937;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 35.0,215.0 L 35.0,255.0" begin="9.36s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.066667;1" /><animate attributeName="opacity" begin="9.36s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.066667;1" /></g><g class="pkt" opacity="1"><circle class="pkt-glow" r="5.4" /><circle class="pkt-core" r="3" /><animateMotion path="M 35.0,255.0 L 35.0,275.0" begin="10.69s" dur="20s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.033333;1" /><animate attributeName="opacity" begin="10.69s" dur="20s" repeatCount="indefinite" calcMode="discrete" values="1;0;0" keyTimes="0;0.033333;1" /></g></g><script>
+
+(function () {
+  'use strict';
+
+  var CFG = {"graph": {"nodes": {"Nplots": {"x": 35.0, "y": 215.0, "color": "#8cd9d9", "r": 6.0, "label": "plots", "ruleText": "Generates the surveillance figures.\n"}, "Nadd_population_weights": {"x": 75.0, "y": 95.0, "color": "#5353c6", "r": 6.0, "label": "add_population_weights", "ruleText": "Calculates statewide population-weighted proportions.\n"}, "Nfilter_by_timeframe": {"x": 35.0, "y": 155.0, "color": "#d98c8c", "r": 6.0, "label": "filter_by_timeframe", "ruleText": "Creates timeframe-specific datasets for reporting.\n"}, "Nvariant_lineage_mapping_qc": {"x": 95.0, "y": 135.0, "color": "#c65353", "r": 6.0, "label": "variant_lineage_mapping_qc", "ruleText": "Checks variant-to-lineage mappings.\n"}, "Nmerge_data": {"x": 135.0, "y": 15.0, "color": "#c65353", "r": 6.0, "label": "merge_data", "ruleText": "Combines run-level wastewater data into one dataset.\n"}, "Nmetadata_qc_raw": {"x": 135.0, "y": 55.0, "color": "#53c653", "r": 6.0, "label": "metadata_qc_raw", "ruleText": "Validates the raw metadata.\n"}, "Nweekly_county_report": {"x": 75.0, "y": 195.0, "color": "#8cd98c", "r": 6.0, "label": "weekly_county_report", "ruleText": "Creates the weekly county QC report.\n"}, "Nadd_county_weights": {"x": 55.0, "y": 115.0, "color": "#c653c6", "r": 6.0, "label": "add_county_weights", "ruleText": "Calculates county population-weighted proportions.\n"}, "Nfinal_qc": {"x": 115.0, "y": 235.0, "color": "#8c8cd9", "r": 6.0, "label": "final_qc", "ruleText": "Compiles all QC outputs into the final QC report.\n"}, "Nmd_to_pdf": {"x": 35.0, "y": 275.0, "color": "#d98c8c", "r": 6.0, "label": "md_to_pdf", "ruleText": "Converts the report to PDF.\n"}, "Npre_qc": {"x": 115.0, "y": 35.0, "color": "#c6c653", "r": 6.0, "label": "pre_qc", "ruleText": "Checks incoming run files before processing.\n"}, "Nreport": {"x": 35.0, "y": 255.0, "color": "#d98cd9", "r": 6.0, "label": "report", "ruleText": "Builds the surveillance report.\n"}, "Npop_weighted_proportions_qc": {"x": 55.0, "y": 175.0, "color": "#d9d98c", "r": 6.0, "label": "pop_weighted_proportions_qc", "ruleText": "Validates statewide and county weighted proportions.\n"}, "Nadd_site_and_classifications": {"x": 95.0, "y": 75.0, "color": "#53c6c6", "r": 6.0, "label": "add_site_and_classifications", "ruleText": "Adds sample-site metadata and variant classifications.\n"}}, "edges": [{"from": "Nfilter_by_timeframe", "to": "Nweekly_county_report", "path": "M 35.0,155.0 L 35.0,180.0 A 15.0,15.0 0 0 0 50.0,195.0 L 75.0,195.0", "length": 73.56194490192345, "duration": 2.4520648300641152}, {"from": "Nfilter_by_timeframe", "to": "Nplots", "path": "M 35.0,155.0 L 35.0,215.0", "length": 60.0, "duration": 2.0}, {"from": "Nadd_population_weights", "to": "Nfilter_by_timeframe", "path": "M 75.0,95.0 L 75.0,140.0 A 15.0,15.0 0 0 1 60.0,155.0 L 35.0,155.0", "length": 93.56194490192345, "duration": 3.1187314967307818}, {"from": "Nadd_population_weights", "to": "Npop_weighted_proportions_qc", "path": "M 75.0,95.0 L 75.0,160.0 A 15.0,15.0 0 0 1 60.0,175.0 L 55.0,175.0", "length": 93.56194490192345, "duration": 3.1187314967307818}, {"from": "Nadd_site_and_classifications", "to": "Nadd_population_weights", "path": "M 95.0,75.0 L 95.0,80.0 A 15.0,15.0 0 0 1 80.0,95.0 L 75.0,95.0", "length": 33.56194490192345, "duration": 1.1187314967307815}, {"from": "Nadd_site_and_classifications", "to": "Nadd_county_weights", "path": "M 95.0,75.0 L 95.0,100.0 A 15.0,15.0 0 0 1 80.0,115.0 L 55.0,115.0", "length": 73.56194490192345, "duration": 2.4520648300641152}, {"from": "Nadd_site_and_classifications", "to": "Nvariant_lineage_mapping_qc", "path": "M 95.0,75.0 L 95.0,135.0", "length": 60.0, "duration": 2.0}, {"from": "Nmetadata_qc_raw", "to": "Nadd_site_and_classifications", "path": "M 135.0,55.0 L 135.0,60.0 A 15.0,15.0 0 0 1 120.0,75.0 L 95.0,75.0", "length": 53.56194490192345, "duration": 1.7853981633974483}, {"from": "Nmetadata_qc_raw", "to": "Nfinal_qc", "path": "M 135.0,55.0 L 135.0,220.0 A 15.0,15.0 0 0 1 120.0,235.0 L 115.0,235.0", "length": 193.56194490192345, "duration": 6.452064830064115}, {"from": "Nmerge_data", "to": "Nmetadata_qc_raw", "path": "M 135.0,15.0 L 135.0,55.0", "length": 40.0, "duration": 1.3333333333333333}, {"from": "Nadd_county_weights", "to": "Nfilter_by_timeframe", "path": "M 55.0,115.0 L 55.0,140.0 A 15.0,15.0 0 0 1 40.0,155.0 L 35.0,155.0", "length": 53.56194490192345, "duration": 1.7853981633974483}, {"from": "Nadd_county_weights", "to": "Npop_weighted_proportions_qc", "path": "M 55.0,115.0 L 55.0,175.0", "length": 60.0, "duration": 2.0}, {"from": "Npre_qc", "to": "Nfinal_qc", "path": "M 115.0,35.0 L 115.0,235.0", "length": 200.0, "duration": 6.666666666666667}, {"from": "Nvariant_lineage_mapping_qc", "to": "Nfinal_qc", "path": "M 95.0,135.0 L 95.0,220.0 A 15.0,15.0 0 0 0 110.0,235.0 L 115.0,235.0", "length": 113.56194490192345, "duration": 3.7853981633974483}, {"from": "Npop_weighted_proportions_qc", "to": "Nfinal_qc", "path": "M 55.0,175.0 L 55.0,220.0 A 15.0,15.0 0 0 0 70.0,235.0 L 115.0,235.0", "length": 113.56194490192345, "duration": 3.7853981633974483}, {"from": "Nplots", "to": "Nfinal_qc", "path": "M 35.0,215.0 L 35.0,220.0 A 15.0,15.0 0 0 0 50.0,235.0 L 115.0,235.0", "length": 93.56194490192345, "duration": 3.1187314967307818}, {"from": "Nplots", "to": "Nreport", "path": "M 35.0,215.0 L 35.0,255.0", "length": 40.0, "duration": 1.3333333333333333}, {"from": "Nreport", "to": "Nmd_to_pdf", "path": "M 35.0,255.0 L 35.0,275.0", "length": 20.0, "duration": 0.6666666666666666}], "incoming": {"Nplots": 1, "Nadd_population_weights": 1, "Nfilter_by_timeframe": 2, "Nvariant_lineage_mapping_qc": 1, "Nmerge_data": 0, "Nmetadata_qc_raw": 1, "Nweekly_county_report": 1, "Nadd_county_weights": 1, "Nfinal_qc": 5, "Nmd_to_pdf": 1, "Npre_qc": 0, "Nreport": 1, "Npop_weighted_proportions_qc": 2, "Nadd_site_and_classifications": 1}, "outgoing": {"Nplots": [15, 16], "Nadd_population_weights": [2, 3], "Nfilter_by_timeframe": [0, 1], "Nvariant_lineage_mapping_qc": [13], "Nmerge_data": [9], "Nmetadata_qc_raw": [7, 8], "Nweekly_county_report": [], "Nadd_county_weights": [10, 11], "Nfinal_qc": [], "Nmd_to_pdf": [], "Npre_qc": [12], "Nreport": [17], "Npop_weighted_proportions_qc": [14], "Nadd_site_and_classifications": [4, 5, 6]}, "sources": ["Nmerge_data", "Npre_qc"]}, "btnCx": 487.0, "btnCy": 18.0, "btnR": 10, "resetBtnX": 448.0, "resetBtnY": 9.0, "resetBtnW": 24.0, "resetBtnH": 18.0, "panelX": 166.0, "panelY": 35.0, "panelW": 320.0, "panelMaxH": 236.0, "hasRuleMetadata": true};
+  var svg = document.documentElement;
+  var NS = 'http://www.w3.org/2000/svg';
+  var NODES = CFG.graph.nodes;
+  var EDGES = CFG.graph.edges;
+  var HAS_RULE_METADATA = !!CFG.hasRuleMetadata;
+
+  var reducedMotion = (
+    typeof window.matchMedia === 'function' &amp;&amp;
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+
+  var paused = true;
+
+  var playIcon = null;
+  var pauseIcon = null;
+  var hlLayer = null;
+  var hlEdgePaths = [];
+  var hlNodeRings = {};
+  var nodeCircleEls = {};
+  var origEdgeEls = [];
+  var ancestorMap = {};
+  var directParentMap = {};
+
+  var rulePanel = null;
+  var rulePanelBg = null;
+  var rulePanelTitle = null;
+  var rulePanelBody = null;
+
+  function packetLayer() {
+    return document.getElementById('packet-animation-layer');
+  }
+
+  function setPacketsVisible(visible) {
+    var layer = packetLayer();
+    if (layer) {
+      layer.setAttribute('visibility', visible ? 'visible' : 'hidden');
+    }
+  }
+
+  function setPaused(nextPaused) {
+    paused = nextPaused;
+
+    if (!paused &amp;&amp; !reducedMotion) {
+      setPacketsVisible(true);
+    }
+
+    if (paused || reducedMotion) {
+      if (typeof svg.pauseAnimations === 'function') svg.pauseAnimations();
+    } else {
+      if (typeof svg.unpauseAnimations === 'function') svg.unpauseAnimations();
+    }
+
+    var btn = document.getElementById('play-pause-btn');
+
+    if (playIcon &amp;&amp; pauseIcon) {
+      playIcon.setAttribute('display', paused ? '' : 'none');
+      pauseIcon.setAttribute('display', paused ? 'none' : '');
+    }
+
+    if (btn) {
+      btn.setAttribute('aria-label', paused ? 'Play animation' : 'Pause animation');
+    }
+  }
+
+  function togglePlayPause() {
+    if (reducedMotion) return;
+    setPaused(!paused);
+  }
+
+  function resetPackets() {
+    /*
+     * Reset means "clear the visible packets and return animation time to the
+     * beginning". We also pause so users can restart intentionally.
+     */
+    setPaused(true);
+
+    if (typeof svg.setCurrentTime === 'function') {
+      try {
+        svg.setCurrentTime(0);
+      } catch (_err) {
+        /* Some SVG hosts may not support setting current time. */
+      }
+    }
+
+    setPacketsVisible(false);
+  }
+
+  function buildPlayPauseButton() {
+    var cx = CFG.btnCx, cy = CFG.btnCy, r = CFG.btnR;
+
+    var btn = document.createElementNS(NS, 'g');
+    btn.setAttribute('id', 'play-pause-btn');
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('aria-label', 'Play animation');
+    btn.setAttribute('tabindex', '0');
+
+    var bg = document.createElementNS(NS, 'circle');
+    bg.setAttribute('id', 'btn-bg');
+    bg.setAttribute('cx', String(cx));
+    bg.setAttribute('cy', String(cy));
+    bg.setAttribute('r', String(r));
+    bg.setAttribute('fill', '#222');
+    bg.setAttribute('opacity', '0.72');
+    btn.appendChild(bg);
+
+    var s = r * 0.42;
+
+    playIcon = document.createElementNS(NS, 'polygon');
+    playIcon.setAttribute(
+      'points',
+      (cx - s * 0.6) + ',' + (cy - s) + ' ' +
+      (cx + s) + ',' + cy + ' ' +
+      (cx - s * 0.6) + ',' + (cy + s)
+    );
+    playIcon.setAttribute('fill', 'white');
+    btn.appendChild(playIcon);
+
+    pauseIcon = document.createElementNS(NS, 'g');
+    pauseIcon.setAttribute('display', 'none');
+
+    var bw = r * 0.22, bh = r * 0.50, gap = r * 0.18;
+
+    var leftBar = document.createElementNS(NS, 'rect');
+    leftBar.setAttribute('x', String(cx - gap - bw));
+    leftBar.setAttribute('y', String(cy - bh));
+    leftBar.setAttribute('width', String(bw));
+    leftBar.setAttribute('height', String(bh * 2));
+    leftBar.setAttribute('fill', 'white');
+    pauseIcon.appendChild(leftBar);
+
+    var rightBar = document.createElementNS(NS, 'rect');
+    rightBar.setAttribute('x', String(cx + gap));
+    rightBar.setAttribute('y', String(cy - bh));
+    rightBar.setAttribute('width', String(bw));
+    rightBar.setAttribute('height', String(bh * 2));
+    rightBar.setAttribute('fill', 'white');
+    pauseIcon.appendChild(rightBar);
+
+    btn.appendChild(pauseIcon);
+
+    btn.addEventListener('click', togglePlayPause);
+    btn.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        togglePlayPause();
+      }
+    });
+
+    svg.appendChild(btn);
+  }
+
+  function buildResetButton() {
+    var x = CFG.resetBtnX;
+    var y = CFG.resetBtnY;
+    var w = CFG.resetBtnW;
+    var h = CFG.resetBtnH;
+
+    var btn = document.createElementNS(NS, 'g');
+    btn.setAttribute('id', 'reset-packets-btn');
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('aria-label', 'Reset and clear visible packets');
+    btn.setAttribute('tabindex', '0');
+
+    var bg = document.createElementNS(NS, 'rect');
+    bg.setAttribute('id', 'reset-btn-bg');
+    bg.setAttribute('x', String(x));
+    bg.setAttribute('y', String(y));
+    bg.setAttribute('width', String(w));
+    bg.setAttribute('height', String(h));
+    bg.setAttribute('rx', '5');
+    bg.setAttribute('ry', '5');
+    bg.setAttribute('fill', '#222');
+    bg.setAttribute('opacity', '0.72');
+    btn.appendChild(bg);
+
+    var label = document.createElementNS(NS, 'text');
+    label.setAttribute('x', String(x + w / 2));
+    label.setAttribute('y', String(y + h / 2 + 2.2));
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('font-family', 'sans-serif');
+    label.setAttribute('font-size', '6');
+    label.setAttribute('font-weight', 'bold');
+    label.setAttribute('fill', 'white');
+    label.textContent = 'reset';
+    btn.appendChild(label);
+
+    btn.addEventListener('click', resetPackets);
+    btn.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        resetPackets();
+      }
+    });
+
+    svg.appendChild(btn);
+  }
+
+  function buildAncestorMap() {
+    var map = {};
+    Object.keys(NODES).forEach(function (nid) { map[nid] = {}; });
+
+    Object.keys(NODES).forEach(function (nid) {
+      var visited = {};
+      var queue = [nid];
+      visited[nid] = true;
+
+      while (queue.length) {
+        var curr = queue.shift();
+
+        EDGES.forEach(function (edge) {
+          if (edge.to === curr &amp;&amp; !visited[edge.from]) {
+            visited[edge.from] = true;
+            map[nid][edge.from] = true;
+            queue.push(edge.from);
+          }
+        });
+      }
+    });
+
+    return map;
+  }
+
+  function buildDirectParentMap() {
+    var map = {};
+    Object.keys(NODES).forEach(function (nid) { map[nid] = {}; });
+
+    EDGES.forEach(function (edge) {
+      map[edge.to][edge.from] = true;
+    });
+
+    return map;
+  }
+
+  function buildHighlightLayer() {
+    var packetLayerEl = packetLayer();
+
+    ancestorMap = buildAncestorMap();
+    directParentMap = buildDirectParentMap();
+
+    hlLayer = document.createElementNS(NS, 'g');
+    hlLayer.setAttribute('id', 'highlight-layer');
+    hlLayer.setAttribute('class', 'highlight-layer');
+
+    if (packetLayerEl) svg.insertBefore(hlLayer, packetLayerEl);
+    else svg.appendChild(hlLayer);
+
+    EDGES.forEach(function (edge, idx) {
+      var srcColor = NODES[edge.from].color || '#ffffff';
+
+      var path = document.createElementNS(NS, 'path');
+      path.setAttribute('class', 'hl-edge');
+      path.setAttribute('d', edge.path);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', srcColor);
+      path.setAttribute('stroke-width', '4');
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('opacity', '0');
+
+      hlLayer.appendChild(path);
+      hlEdgePaths[idx] = path;
+    });
+
+    Object.keys(NODES).forEach(function (nid) {
+      var node = NODES[nid];
+
+      var ring = document.createElementNS(NS, 'circle');
+      ring.setAttribute('class', 'hl-ring');
+      ring.setAttribute('cx', String(node.x));
+      ring.setAttribute('cy', String(node.y));
+      ring.setAttribute('r', String((node.r || 6) + 2.25));
+      ring.setAttribute('fill', 'none');
+      ring.setAttribute('stroke', node.color || '#ffffff');
+      ring.setAttribute('stroke-width', '2.75');
+      ring.setAttribute('opacity', '0');
+
+      hlLayer.appendChild(ring);
+      hlNodeRings[nid] = ring;
+    });
+
+    svg.querySelectorAll('line, path').forEach(function (el) {
+      if (el.closest('#highlight-layer') || el.closest('#packet-animation-layer')) return;
+
+      var stroke = (el.getAttribute('stroke') || '').toLowerCase();
+      if (!stroke || stroke === 'none' || stroke === 'white' || stroke === '#ffffff') return;
+
+      var dash = (el.getAttribute('stroke-dasharray') || '').trim();
+      if (dash &amp;&amp; dash !== 'none' &amp;&amp; dash !== '0') return;
+
+      origEdgeEls.push(el);
+      el.setAttribute('class', (el.getAttribute('class') || '') + ' dag-orig-edge');
+    });
+
+    var nodesAbove = document.createElementNS(NS, 'g');
+    nodesAbove.setAttribute('id', 'nodes-above-layer');
+
+    if (packetLayerEl) svg.insertBefore(nodesAbove, packetLayerEl);
+    else svg.appendChild(nodesAbove);
+
+    var circleEls = [];
+
+    svg.querySelectorAll('circle[id]').forEach(function (el) {
+      var nid = el.getAttribute('id');
+      if (!NODES[nid]) return;
+      circleEls.push({ el: el, nid: nid });
+    });
+
+    circleEls.forEach(function (item) {
+      var el = item.el;
+      var nid = item.nid;
+      var sibling = el.nextElementSibling;
+
+      el.setAttribute('class', 'dag-node-circle');
+      el.style.cursor = 'pointer';
+      nodeCircleEls[nid] = el;
+
+      el.addEventListener('mouseenter', function () { onNodeHover(nid); });
+      el.addEventListener('mouseleave', onNodeUnhover);
+
+      if (HAS_RULE_METADATA) {
+        el.addEventListener('click', function (e) {
+          e.stopPropagation();
+          showRulePanel(nid);
+        });
+      }
+
+      nodesAbove.appendChild(el);
+
+      if (sibling &amp;&amp; sibling.tagName &amp;&amp; sibling.tagName.toLowerCase() === 'text') {
+        nodesAbove.appendChild(sibling);
+      }
+    });
+  }
+
+  function onNodeHover(hoveredId) {
+    var ancestors = ancestorMap[hoveredId] || {};
+    var directParents = directParentMap[hoveredId] || {};
+    var relevant = Object.assign({}, ancestors);
+    relevant[hoveredId] = true;
+
+    EDGES.forEach(function (edge, idx) {
+      var on = relevant[edge.from] &amp;&amp; relevant[edge.to];
+      hlEdgePaths[idx].setAttribute('opacity', on ? '0.9' : '0');
+    });
+
+    Object.keys(NODES).forEach(function (nid) {
+      hlNodeRings[nid].setAttribute('opacity', directParents[nid] ? '1' : '0');
+    });
+
+    origEdgeEls.forEach(function (el) {
+      el.setAttribute('opacity', '0.06');
+    });
+
+    Object.keys(nodeCircleEls).forEach(function (nid) {
+      nodeCircleEls[nid].setAttribute('opacity', relevant[nid] ? '1' : '0.2');
+    });
+  }
+
+  function onNodeUnhover() {
+    EDGES.forEach(function (_edge, idx) {
+      hlEdgePaths[idx].setAttribute('opacity', '0');
+    });
+
+    Object.keys(NODES).forEach(function (nid) {
+      hlNodeRings[nid].setAttribute('opacity', '0');
+    });
+
+    Object.keys(nodeCircleEls).forEach(function (nid) {
+      nodeCircleEls[nid].setAttribute('opacity', '1');
+    });
+
+    origEdgeEls.forEach(function (el) {
+      el.setAttribute('opacity', '1');
+    });
+  }
+
+  function clearChildren(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  function wrapRuleText(text, maxChars) {
+    var output = [];
+
+    String(text || '').replace(/\t/g, '    ').split(/\r?\n/).forEach(function (line) {
+      if (line.length &lt;= maxChars) {
+        output.push(line);
+        return;
+      }
+
+      var indentMatch = line.match(/^\s*/);
+      var indent = indentMatch ? indentMatch[0] : '';
+      var remaining = line;
+
+      while (remaining.length &gt; maxChars) {
+        var cut = remaining.lastIndexOf(' ', maxChars);
+        if (cut &lt;= Math.max(8, indent.length)) cut = maxChars;
+
+        output.push(remaining.slice(0, cut));
+        remaining = indent + '  ' + remaining.slice(cut).trimStart();
+      }
+
+      output.push(remaining);
+    });
+
+    return output;
+  }
+
+  function buildRulePanel() {
+    if (!HAS_RULE_METADATA) return;
+
+    rulePanel = document.createElementNS(NS, 'g');
+    rulePanel.setAttribute('id', 'rule-info-panel');
+    rulePanel.setAttribute('display', 'none');
+
+    rulePanelBg = document.createElementNS(NS, 'rect');
+    rulePanelBg.setAttribute('id', 'rule-info-panel-bg');
+    rulePanelBg.setAttribute('x', String(CFG.panelX));
+    rulePanelBg.setAttribute('y', String(CFG.panelY));
+    rulePanelBg.setAttribute('width', String(CFG.panelW));
+    rulePanelBg.setAttribute('height', '80');
+    rulePanelBg.setAttribute('rx', '4');
+    rulePanelBg.setAttribute('ry', '4');
+    rulePanel.appendChild(rulePanelBg);
+
+    rulePanelTitle = document.createElementNS(NS, 'text');
+    rulePanelTitle.setAttribute('id', 'rule-info-panel-title');
+    rulePanelTitle.setAttribute('x', String(CFG.panelX + 8));
+    rulePanelTitle.setAttribute('y', String(CFG.panelY + 13));
+    rulePanelTitle.setAttribute('font-size', '6');
+    rulePanel.appendChild(rulePanelTitle);
+
+    var close = document.createElementNS(NS, 'text');
+    close.setAttribute('id', 'rule-info-panel-close');
+    close.setAttribute('x', String(CFG.panelX + CFG.panelW - 12));
+    close.setAttribute('y', String(CFG.panelY + 13));
+    close.setAttribute('font-size', '8');
+    close.textContent = '×';
+    close.addEventListener('click', function (e) {
+      e.stopPropagation();
+      hideRulePanel();
+    });
+    rulePanel.appendChild(close);
+
+    var divider = document.createElementNS(NS, 'line');
+    divider.setAttribute('x1', String(CFG.panelX));
+    divider.setAttribute('x2', String(CFG.panelX + CFG.panelW));
+    divider.setAttribute('y1', String(CFG.panelY + 20));
+    divider.setAttribute('y2', String(CFG.panelY + 20));
+    divider.setAttribute('stroke', '#555');
+    divider.setAttribute('stroke-width', '0.6');
+    rulePanel.appendChild(divider);
+
+    rulePanelBody = document.createElementNS(NS, 'text');
+    rulePanelBody.setAttribute('id', 'rule-info-panel-body');
+    rulePanelBody.setAttribute('x', String(CFG.panelX + 8));
+    rulePanelBody.setAttribute('y', String(CFG.panelY + 30));
+    rulePanelBody.setAttribute('font-size', '5');
+    rulePanelBody.setAttribute('xml:space', 'preserve');
+    rulePanel.appendChild(rulePanelBody);
+
+    svg.appendChild(rulePanel);
+
+    svg.addEventListener('click', function () {
+      hideRulePanel();
+    });
+
+    rulePanel.addEventListener('click', function (e) {
+      e.stopPropagation();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') hideRulePanel();
+    });
+  }
+
+  function showRulePanel(nodeId) {
+    if (!HAS_RULE_METADATA || !rulePanel) return;
+
+    var node = NODES[nodeId] || {};
+    var label = node.label || nodeId;
+    var body = (typeof node.ruleText === 'string')
+      ? node.ruleText
+      : 'No rule metadata provided for this node.';
+
+    rulePanelTitle.textContent = label;
+    clearChildren(rulePanelBody);
+
+    var maxChars = Math.max(24, Math.floor((CFG.panelW - 18) / 3.1));
+    var lines = wrapRuleText(body, maxChars);
+    var maxLines = Math.max(1, Math.floor((CFG.panelMaxH - 36) / 6));
+    var truncated = false;
+
+    if (lines.length &gt; maxLines) {
+      lines = lines.slice(0, maxLines - 1);
+      lines.push('…');
+      truncated = true;
+    }
+
+    lines.forEach(function (line, idx) {
+      var tspan = document.createElementNS(NS, 'tspan');
+      tspan.setAttribute('x', String(CFG.panelX + 8));
+      tspan.setAttribute('dy', idx === 0 ? '0' : '6');
+      tspan.textContent = line;
+      rulePanelBody.appendChild(tspan);
+    });
+
+    var panelH = Math.min(CFG.panelMaxH, 38 + lines.length * 6);
+    if (truncated) panelH = Math.min(CFG.panelMaxH, panelH + 2);
+
+    rulePanelBg.setAttribute('height', String(panelH));
+    rulePanel.setAttribute('display', '');
+  }
+
+  function hideRulePanel() {
+    if (rulePanel) rulePanel.setAttribute('display', 'none');
+  }
+
+  function addReducedMotionLabel() {
+    var label = document.createElementNS(NS, 'text');
+    label.setAttribute('x', String(CFG.btnCx));
+    label.setAttribute('y', String(CFG.btnCy + CFG.btnR + 8));
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('font-family', 'sans-serif');
+    label.setAttribute('font-size', '6');
+    label.setAttribute('fill', '#888');
+    label.textContent = 'motion off';
+    svg.appendChild(label);
+  }
+
+  function init() {
+    buildHighlightLayer();
+    buildRulePanel();
+    buildResetButton();
+    buildPlayPauseButton();
+
+    /*
+     * Start paused in interactive mode. We do not hide packets initially;
+     * pausing at t=0 keeps the initial animation frame available. The reset
+     * button explicitly hides currently visible packets.
+     */
+    setPaused(true);
+
+    if (reducedMotion) {
+      addReducedMotionLabel();
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+})();
+
+</script><metadata>{
+  "animation": "declarative-svg-animateMotion",
+  "arcRadius": 15.0,
+  "edgeCount": 18,
+  "generatedBy": "snakevision.animation",
+  "hasResetPacketsButton": true,
+  "hasRuleMetadata": true,
+  "interactiveJs": true,
+  "interactiveModeStartsPaused": true,
+  "packetElementCount": 19,
+  "packetInterval": 20.0,
+  "packetRadius": 3.0,
+  "sourceCount": 2,
+  "speed": 30.0
+}</metadata></svg>
