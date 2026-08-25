@@ -1,5 +1,7 @@
 # SNOWa
 
+![SNOWa Hex Logo](images/SNOWa_hex_logo.png)
+
 **Surveillance of Novel Outbreaks in Wastewater**
 
 SNOWa is a reproducible Snakemake workflow for processing, quality checking, visualizing, and reporting SARS-CoV-2 wastewater genomic surveillance data.
