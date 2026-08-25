@@ -38,10 +38,6 @@ SNOWa is intended to make routine processing and reporting reproducible. Success
 
 ### Workflow Summary
 
-![SNOWa workflow overview](images/snowa_workflow.png)
-
-![SNOWa Snakemake DAG](images/snowa_dag.svg)
-
 SNOWa performs the following major steps:
 
 1. Runs preliminary quality-control checks on new run files.
@@ -55,6 +51,13 @@ SNOWa performs the following major steps:
 9. Filters data for surveillance figures.
 10. Generates surveillance figures and reports.
 11. Compiles quality-control results.
+
+![SNOWa workflow overview](images/snowa_workflow.png)
+
+These steps are organized within the snakemake workflow as the following set of "rules", which are executed systematically according to their interdependencies:
+
+![SNOWa Snakemake DAG](images/snowa_dag.svg)
+
 
 ---
 
