@@ -797,6 +797,7 @@ Geographic boundary and population datasets should be cited according to the sou
 ## Maintenance, Support, and Contributions
 
 **Primary maintainer:** Steph M Lunn, MPH, MS
+**Technical Support:** Dan Hartman, MS, PhD
 
 Organizations:
 
@@ -804,4 +805,6 @@ Organizations:
 * Molecular Epidemiology Program
 * Washington State Department of Health
 
-**Email:** [stephanie.lunn@doh.wa.gov](mailto:stephanie.lunn@doh.wa.gov)
+**Email:** 
+- [Stephanie.Lunn@doh.wa.gov](mailto:Stephanie.Lunn@doh.wa.gov)
+- [Daniel.Hartman@doh.wa.gov](mailto:Daniel.Hartman@doh.wa.gov)
