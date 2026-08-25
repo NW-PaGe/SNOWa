@@ -796,15 +796,14 @@ Geographic boundary and population datasets should be cited according to the sou
 
 ## Maintenance, Support, and Contributions
 
-**Primary maintainer:** Steph M Lunn, MPH, MS
-**Technical Support:** Dan Hartman, MS, PhD
+- **Primary maintainer:** Steph M Lunn, MPH, MS
+[Stephanie.Lunn@doh.wa.gov](mailto:Stephanie.Lunn@doh.wa.gov)
+
+- **Technical Support:** Dan Hartman, MS, PhD
+[Daniel.Hartman@doh.wa.gov](mailto:Daniel.Hartman@doh.wa.gov)
 
 Organizations:
 
 * Northwest Pathogen Genomics Center of Excellence
 * Molecular Epidemiology Program
 * Washington State Department of Health
-
-**Email:** 
-- [Stephanie.Lunn@doh.wa.gov](mailto:Stephanie.Lunn@doh.wa.gov)
-- [Daniel.Hartman@doh.wa.gov](mailto:Daniel.Hartman@doh.wa.gov)
