@@ -132,7 +132,7 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
                 elif date < one_month_ago:
                     flag = "🟡 OLD DATE"
 
-                print(f"      {date.strftime('%Y-%m-%d (%A)')}: {count} samples {flag}")
+                print(f"      {date.strftime('%Y-%m-%d (%A)')}: {count} entries {flag}")
 
                 # Break down by site for this date
                 if 'Sample_Site' in new_run_df.columns and 'Sample_ID' in new_run_df.columns:
@@ -148,17 +148,32 @@ def pre_qc(directory): ## I added directory here - that will come from args.pars
                         print(f"         • {site}: {site_count} samples (Sample_IDs: {sample_ids})")
                     print()  # Add blank line between dates
 
+            # Count unique samples by week and site (Monday start)
+            print("\n   📅 SAMPLES BY WEEK AND SITE:")
+
+            weekly_data = new_run_df.assign(
+                Week=dates.dt.to_period('W-SUN').dt.start_time
+            )
+
+            for week, week_data in weekly_data.groupby('Week'):
+                total_samples = week_data['Sample_ID'].nunique()
+                print(f"\n      {week.strftime('%Y-%m-%d')}: {total_samples} samples")
+
+                for site, site_data in week_data.groupby('Sample_Site'):
+                    sample_ids = [str(x) for x in site_data['Sample_ID'].dropna().unique()]
+                    print(f"         • {site}: {len(sample_ids)} samples (Sample_IDs: {sample_ids})")
+
             # Summary by year and month
             print(f"\n   📊 SUMMARY BY TIME PERIOD:")
             year_counts = valid_dates.dt.year.value_counts().sort_index()
             for year, count in year_counts.items():
                 flag = "🔴" if year < 2024 else "🟡" if year == 2024 else "✅"
-                print(f"      {flag} {year}: {count} samples")
+                print(f"      {flag} {year}: {count} entries")
 
             month_counts = valid_dates.dt.to_period('M').value_counts().sort_index()
             print(f"   📅 BY MONTH:")
             for month, count in month_counts.items():
-                print(f"      {month}: {count} samples")
+                print(f"      {month}: {count} entries")
 
         # === 4. SCREEN FOR NEW SAMPLE COLLECTION SITES ===
         print("\n4️⃣ SAMPLE COLLECTION SITES:")
