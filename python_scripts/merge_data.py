@@ -29,6 +29,14 @@ def process_data(directory):
 
     # Concatenate all DataFrames
     raw_combined_df = pd.concat(dataframes, ignore_index=True)
+
+    # Standardize collection dates
+    raw_combined_df['Sample_Collection_Date'] = pd.to_datetime(
+        raw_combined_df['Sample_Collection_Date'],
+        format='mixed',
+        errors='coerce'
+    ).dt.strftime('%Y-%m-%d')
+
     df = pd.DataFrame(raw_combined_df)
     # Save the result
     raw_combined_df.to_csv('results/raw_combined_output.csv', index=False)
