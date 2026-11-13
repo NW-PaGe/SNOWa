@@ -354,7 +354,7 @@ def map_metadata(sites, classifications, input, output):
         combined_df[
             'Sample_Collection_Date'
         ]
-        .dt.to_period('W-MON')
+        .dt.to_period('W-SUN')
         .dt.start_time
         .dt.date
     )
